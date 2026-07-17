@@ -40,5 +40,5 @@ pip install ruff
 ## Licensing of contributions
 
 By contributing you agree your contribution is licensed under Apache-2.0 (the
-repository license). The `ee/` directory is reserved for commercial code and
-is not open for external contribution at this time.
+repository license). Every line of source in this repository is Apache-2.0 —
+there is no dual-licensed or commercial code here.
