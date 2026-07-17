@@ -1,0 +1,54 @@
+# Embedding model cache — large ONNX binary (~90MB), re-downloaded from
+# HuggingFace on first run. Never commit.
+model-cache/
+
+# Live databases (local runtime data only).
+db/engine.db
+db/engine.db-wal
+db/engine.db-shm
+db/engine-pre-deploy-*.db
+
+# Autonomic capture watermark/rate-limit/dedup state (runtime, local only).
+db/capture-state.db
+db/capture-state.db-wal
+db/capture-state.db-shm
+
+# Capture-event shared-secret token file (never commit the secret).
+db/.capture-token
+.capture-token
+
+# Token DBs (runtime data, local only).
+db/token-events.db
+db/token-events.db-wal
+db/token-events.db-shm
+db/token-history.db
+db/token-history.db-wal
+db/token-history.db-shm
+
+# Logs.
+logs/*.log
+logs/*.log.bak*
+logs/*.log.[0-9]*
+logs/*.stderr
+logs/.*
+
+# Backups.
+backups/*.db.gz
+backups/*.tar.gz
+db/backups/
+
+# Python.
+__pycache__/
+*.pyc
+*.egg-info/
+/build/
+/dist/
+
+# Local config overrides.
+config.local.json
+
+# OS / IDE.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

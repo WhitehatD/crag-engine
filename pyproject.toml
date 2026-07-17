@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# `pip install -e .` from a checkout puts the four console scripts on PATH.
+# The app files themselves stay single-file scripts in apps/ + db/;
+# crag_engine/ carries thin main() shims that runpy-exec them.
+name = "crag-engine"
+version = "0.1.0"
+description = "The verified-memory engine for crag — claim layer, grounding, disposition, and capture. Unit tests for memory."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "crag contributors" }]
+keywords = ["claude-code", "cursor", "memory", "grounding", "mcp", "crag"]
+
+# Core runtime — the daemon's HTTP stack + the MCP client + numpy data plane.
+# These are the imports that MUST be present for `crag-engine` to start and
+# `crag-engine-mcp` to speak stdio. Heavy embedding deps (onnxruntime/fastembed) are
+# in the optional `embeddings` extra — the daemon starts fail-soft without them
+# (embed model loads lazily; /health reports 503 until ready, process runs).
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.31",
+    "pydantic>=2.0",
+    "numpy>=2.0",
+    "httpx>=0.27",
+    "mcp>=1.0",
+]
+
+[project.optional-dependencies]
+# Semantic embeddings — fastembed wraps onnxruntime (large native wheels).
+# Install for full recall: `pip install -e '.[embeddings]'`.
+embeddings = [
+    "fastembed>=0.8.0",
+    "onnxruntime>=1.24",
+]
+# Team/server grounding mode via the Anthropic first-party API (vs the default
+# local anthropic-oauth passthrough). See packaging/README.
+anthropic-api = ["anthropic>=0.40"]
+# OpenAI-compatible grounding provider (openai / ollama base_url).
+openai = ["openai>=1.40"]
+# Everything, for a single-command full install.
+all = [
+    "fastembed>=0.8.0",
+    "onnxruntime>=1.24",
+    "anthropic>=0.40",
+    "openai>=1.40",
+]
+
+[project.scripts]
+crag-engine = "crag_engine.daemon:main"
+crag-engine-mcp = "crag_engine.mcp:main"
+crag-engine-cli = "crag_engine.cli:main"
+
+[tool.setuptools]
+# Only crag_engine/ is an importable package. The app scripts (apps/, db/) are
+# single-file scripts executed by the shims via runpy — they are NOT installed
+# as modules (that would require renaming the hyphenated files). An editable
+# install from the checkout is the supported install mode; the shims locate the
+# repo tree relative to crag_engine/ at runtime (see crag_engine/__init__.py).
+packages = ["crag_engine"]
+
+[tool.ruff]
+# Files CI lints — CI and ci-local.sh both source this list.
+# apps/daemon and apps/mcp are single-file; include explicitly.
+include = [
+    "apps/daemon/engine_daemon.py",
+    "apps/mcp/mcp-server.py",
+    "apps/collector/engine-collector.py",
+    "apps/collector/migrate-token-ledger.py",
+    "apps/cron/**/*.py",
+    "db/**/*.py",
+    "crag_engine/**/*.py",
+    "packages/pricing/**/*.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F"]
+ignore = ["E501", "E741", "E402"]
+
+[tool.ruff.lint.per-file-ignores]
+# engine_daemon.py uses sys.path.insert before db-module imports (legitimate pattern)
+"apps/daemon/engine_daemon.py" = ["F401"]
+# mcp-server.py uses deferred imports after daemon connection setup
+"apps/mcp/mcp-server.py" = ["F401"]

@@ -1,0 +1,32 @@
+# Docker build context excludes.
+# Keep the daemon image lean and NEVER bake live data / secrets into a layer.
+
+# Live databases (a fresh engine.db is created on the /data volume at runtime).
+db/engine.db
+db/engine.db-wal
+db/engine.db-shm
+db/engine-pre-deploy-*.db
+db/token-events.db*
+db/token-history.db*
+db/capture-state.db*
+
+# Embedding model cache — re-downloaded on first run into HF_HOME on the volume.
+model-cache/
+
+# Runtime data, logs, backups.
+logs/
+backups/
+
+# Secrets / token mirrors.
+config.local.json
+**/.capture-token
+
+# Python + VCS cruft.
+**/__pycache__/
+*.egg-info/
+.git/
+
+# Console: node_modules never enters the context; dist is built IN the image
+# (console-build stage in Dockerfile.daemon), so a stale local build is ignored.
+apps/console/node_modules/
+apps/console/dist/

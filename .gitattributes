@@ -1,0 +1,26 @@
+# Force LF line endings on shell scripts and YAML so they work correctly
+# on every platform — even when `core.autocrlf=true` (the Windows default)
+# would otherwise convert to CRLF on checkout.
+#
+# This matters specifically for:
+#   - scripts/*.sh — invoked by bash. `\r` characters can silently corrupt
+#     scripts and shellcheck flags them as SC1017.
+#   - CI workflow YAML — runners parse YAML on Linux; CRLF can confuse YAML
+#     parsers in edge cases.
+
+*.sh           text eol=lf
+*.bash         text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.py           text eol=lf
+*.toml         text eol=lf
+*.json         text eol=lf
+*.md           text eol=lf
+Dockerfile     text eol=lf
+.gitignore     text eol=lf
+.gitattributes text eol=lf
+
+# Binaries: no conversion
+*.db           binary
+*.sqlite       binary
+*.onnx         binary

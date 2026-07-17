@@ -1,0 +1,75 @@
+# crag-engine daemon — container image
+#
+# Installs the crag-engine package from the repo checkout (editable-style copy)
+# and runs the daemon via the `crag-engine` console entry point. SQLite stays
+# the default store; the DB + logs live on the /data volume (CRAG_ENGINE_HOME).
+#
+# Build (from the repo root — the build context must be the repo root):
+#   docker build -f packaging/docker/Dockerfile.daemon -t crag-engine .
+# Run:
+#   docker compose -f packaging/docker/docker-compose.yml up -d
+#
+# Not digest-pinned yet — pin before any public image publishing.
+
+# ---------------------------------------------------------------------------
+# Stage 1: build the embedded operator console (apps/console -> dist).
+# The daemon serves it at /console — one image ships engine + console together
+# (embedded-deploy contract: ONE deploy updates BOTH).
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS console-build
+
+WORKDIR /build
+COPY apps/console/package.json apps/console/package-lock.json ./
+RUN npm ci
+COPY apps/console/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: the daemon image.
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim
+
+LABEL maintainer="crag contributors"
+LABEL description="crag-engine daemon — verified cross-session memory service"
+
+# curl is required by the compose healthcheck.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root runtime user (/data is chowned so SQLite can create -wal/-shm
+# siblings next to the DB file).
+RUN useradd --create-home --uid 10001 engine \
+    && mkdir -p /data/db /data/logs \
+    && chown -R engine:engine /data
+
+WORKDIR /opt/crag-engine
+
+# Copy the repo tree. crag_engine's console shims execute the app scripts from
+# this checkout (see crag_engine/__init__.py) — the tree IS the application.
+# .dockerignore at the repo root excludes db/*.db*, logs/, model-cache/.
+COPY --chown=engine:engine . /opt/crag-engine
+
+# The built console (stage 1) — served by the daemon at /console.
+COPY --from=console-build --chown=engine:engine /build/dist /opt/crag-engine/apps/console/dist
+
+# Install the package + embeddings extra (full recall needs fastembed/onnx).
+# --no-cache-dir keeps the layer lean.
+RUN pip install --no-cache-dir -e ".[embeddings]"
+
+USER engine
+
+# Data plane on the volume; bind on all interfaces INSIDE the container only —
+# compose maps it to 127.0.0.1 on the host, preserving the localhost-only
+# contract of the bare-metal install.
+ENV CRAG_ENGINE_HOME=/data \
+    CRAG_ENGINE_DB_PATH=/data/db/engine.db \
+    CRAG_ENGINE_LOG_DIR=/data/logs \
+    CRAG_ENGINE_DAEMON_HOST=0.0.0.0 \
+    CRAG_ENGINE_DAEMON_PORT=8786 \
+    HF_HOME=/data/model-cache
+
+EXPOSE 8786
+
+CMD ["crag-engine"]

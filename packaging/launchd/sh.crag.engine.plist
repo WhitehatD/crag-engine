@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  crag-engine daemon — launchd agent (macOS).
+
+  Install (pip path):
+    git clone <repo> ~/crag-engine && cd ~/crag-engine
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install -e '.[embeddings]'
+    # edit the paths below to match your checkout + username, then:
+    cp packaging/launchd/sh.crag.engine.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/sh.crag.engine.plist
+    curl -sf http://127.0.0.1:8786/health
+
+  Data (DB + logs) defaults to the checkout unless CRAG_ENGINE_HOME is set below.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>sh.crag.engine</string>
+
+    <!-- EDIT: absolute path to the venv's crag-engine console script. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/CHANGE_ME/crag-engine/.venv/bin/crag-engine</string>
+    </array>
+
+    <!-- EDIT: your checkout root. -->
+    <key>WorkingDirectory</key>
+    <string>/Users/CHANGE_ME/crag-engine</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CRAG_ENGINE_HOME</key>
+        <string>/Users/CHANGE_ME/crag-engine</string>
+        <key>CRAG_ENGINE_DAEMON_HOST</key>
+        <string>127.0.0.1</string>
+        <key>CRAG_ENGINE_DAEMON_PORT</key>
+        <string>8786</string>
+        <!-- Team/server grounding mode (optional):
+        <key>CRAG_ENGINE_GROUNDING_PROVIDER</key>
+        <string>anthropic-api</string>
+        <key>ANTHROPIC_API_KEY</key>
+        <string>sk-ant-...</string>
+        -->
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- EDIT: log paths (or point at CRAG_ENGINE_HOME/logs/). -->
+    <key>StandardOutPath</key>
+    <string>/Users/CHANGE_ME/crag-engine/logs/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/CHANGE_ME/crag-engine/logs/launchd-stderr.log</string>
+</dict>
+</plist>

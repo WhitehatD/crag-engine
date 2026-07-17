@@ -1,0 +1,51 @@
+# crag-engine daemon — systemd unit
+#
+# Install (Linux, pip path):
+#   git clone <repo> /opt/crag-engine && cd /opt/crag-engine
+#   python3 -m venv .venv && . .venv/bin/activate
+#   pip install -e '.[embeddings]'
+#   sudo cp packaging/systemd/crag-engine.service /etc/systemd/system/
+#   # edit User/WorkingDirectory/ExecStart paths below to match your checkout
+#   sudo systemctl daemon-reload && sudo systemctl enable --now crag-engine
+#   systemctl status crag-engine
+#   curl -sf http://127.0.0.1:8786/health
+#
+# Data (DB + logs) lives under CRAG_ENGINE_HOME. With no CRAG_ENGINE_* env set, paths default
+# to the checkout (<WorkingDirectory>/db/engine.db, <WorkingDirectory>/logs).
+
+[Unit]
+Description=crag engine daemon — verified cross-session memory
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# --- EDIT THESE for your host ---
+User=crag-engine
+Group=crag-engine
+WorkingDirectory=/opt/crag-engine
+# Use the venv's console script created by `pip install -e .`
+ExecStart=/opt/crag-engine/.venv/bin/crag-engine
+# --------------------------------
+
+# Data plane (override to relocate off the checkout).
+Environment=CRAG_ENGINE_HOME=/opt/crag-engine
+Environment=CRAG_ENGINE_DAEMON_HOST=127.0.0.1
+Environment=CRAG_ENGINE_DAEMON_PORT=8786
+# Team/server grounding mode (optional): uncomment both lines and set the key
+# in an EnvironmentFile that is NOT world-readable (chmod 600).
+# Environment=CRAG_ENGINE_GROUNDING_PROVIDER=anthropic-api
+# EnvironmentFile=/etc/crag-engine/crag-engine.env
+
+Restart=on-failure
+RestartSec=5
+# Give the embedding model warm-up room before systemd considers a start failed.
+TimeoutStartSec=180
+
+# Hardening (safe defaults; loosen if your CRAG_ENGINE_HOME is outside the checkout).
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

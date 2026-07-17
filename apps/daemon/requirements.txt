@@ -1,0 +1,20 @@
+# crag engine daemon — pinned Python dependencies
+# Install: pip install -r apps/daemon/requirements.txt
+#
+# Mirror of the daemon's runtime imports in apps/daemon/engine_daemon.py plus
+# the transitive needs of db/embed.py (fastembed + onnxruntime) and the
+# entity_extract / contradiction / broadcaster modules.
+
+# HTTP service stack
+fastapi>=0.115
+uvicorn>=0.31
+
+# Daemon also speaks httpx outbound (broadcaster + tests)
+httpx>=0.27
+
+# Data plane
+numpy>=2.0
+
+# Semantic embedding (Phase 2) — fastembed wraps onnxruntime
+fastembed>=0.8.0
+onnxruntime>=1.24

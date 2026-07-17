@@ -1,0 +1,9 @@
+# crag-engine MCP server — Python dependencies
+# Install: pip install -r apps/mcp/requirements.txt
+#
+# mcp-server.py speaks JSON-RPC over stdio via the mcp package.
+# httpx is REQUIRED for daemon HTTP calls — there is no direct-SQLite
+# fallback; without httpx every tool returns a loud structured error.
+
+mcp>=1.0
+httpx>=0.27

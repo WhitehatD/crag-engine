@@ -1,0 +1,261 @@
+# coding: utf-8
+# crag engine daemon runtime configuration — grounding LLM + cost governance
+# (Phase 1b, insight #3339). Every key below can be overridden by an
+# environment variable at process start; env always wins over this file.
+# This file ships with sane, currently-in-production defaults — editing it
+# (or setting the matching env var) is the ONLY way to change grounding LLM
+# behavior. Nothing grounding-related is hardcoded in Python outside this
+# seam (see db/grounding_config.py).
+#
+# House style: additive-only, no destructive semantics. Missing keys/tables
+# fall back to the defaults baked into grounding_config.py, so an operator
+# can delete this whole file and the daemon keeps working unchanged.
+
+# ---------------------------------------------------------------------------
+# [paths] + [sources].
+# Resolved by db/engine_paths.py with order: env var → this file → repo-relative
+# default (repo root derived from db/engine_paths.py's location). Env ALWAYS
+# wins. Every key here is OPTIONAL — delete the section and the accessor falls
+# back to the repo-relative default. A fresh clone leaves these unset; the
+# daemon binds 127.0.0.1:8786 and stores data under the checkout.
+# ---------------------------------------------------------------------------
+[paths]
+# Engine root. Default = repo root (parent of db/). Env: CRAG_ENGINE_HOME
+# home = "/opt/crag-engine"
+# SQLite DB. Default = <home>/db/engine.db. Env: CRAG_ENGINE_DB_PATH
+# db_path = "/opt/crag-engine/db/engine.db"
+# Log directory. Default = <home>/logs. Env: CRAG_ENGINE_LOG_DIR
+# log_dir = "/opt/crag-engine/logs"
+# Daemon bind. Defaults 127.0.0.1:8786. Env: CRAG_ENGINE_DAEMON_HOST / CRAG_ENGINE_DAEMON_PORT
+# daemon_host = "127.0.0.1"
+# daemon_port = 8786
+
+[sources]
+# Optional external files an out-of-process integration may tail / read. Each
+# is individually optional and fail-soft: unset or missing sources are skipped,
+# never fatal. Every key ships UNSET (no portable default). Per-key env
+# override: CRAG_ENGINE_SOURCE_<KEY_UPPER> (e.g. CRAG_ENGINE_SOURCE_HISTORY_DB).
+# history_db        = "/path/to/history.db"
+# notify_token_file = "/path/to/notify.token"   # the token lives INSIDE this file, not here
+
+[grounding]
+# How many times a failed job is retried before landing in 'failed' status
+# (mechanically_unverifiable jobs bypass this and go terminal after 1 try).
+# Env: CRAG_ENGINE_GROUNDING_MAX_ATTEMPTS
+max_attempts = 3
+
+# How many async worker threads drain the job queue concurrently.
+# BREATHING-CORD (2026-07-06): kept at 1 so there is never more than one
+# in-flight grounding LLM call. Combined with min_call_interval_sec below,
+# ONE worker makes the drain rate globally deterministic (~1 job / interval).
+# On the anthropic-oauth provider the loop shares the Claude subscription
+# quota + the Headroom 60rpm/100Ktpm bucket with the interactive session, so
+# it must never burst. Env: CRAG_ENGINE_GROUNDING_WORKER_CONCURRENCY
+worker_concurrency = 1
+
+# Seconds the worker loop sleeps between drain attempts when idle.
+# Env: CRAG_ENGINE_GROUNDING_WORKER_SLEEP
+poll_interval_sec = 5
+
+# Minimum seconds between successive LLM-calling drains — the REAL rate limit.
+# 8s => at most ~7 grounding jobs/min, well under the 60rpm Headroom bucket, so
+# the loop drains the backlog steadily without ever starving the interactive
+# session. This paces the CALLS; it does not pause the loop. Tune this (not the
+# daily budget) to trade drain speed vs. quota headroom.
+# Env: CRAG_ENGINE_GROUNDING_MIN_CALL_INTERVAL
+min_call_interval_sec = 8
+
+# Seconds between proactive sweeps that top up the job queue (cheap — no LLM
+# call). Keep the queue fed so the paced drain always has work.
+# Env: CRAG_ENGINE_GROUNDING_SWEEP_INTERVAL
+sweep_interval_sec = 60
+
+# Max claims funneled into the job queue per sweep tick (per claim_kind).
+# Env: CRAG_ENGINE_GROUNDING_SWEEP_BATCH
+sweep_batch = 5
+
+[grounding.llm]
+# Which backend authors/adjudicates grounding recipes.
+#   anthropic-oauth  — uses the local Claude Code OAuth token
+#                      (~/.claude/.credentials.json). Bills against the
+#                      CLAUDE SUBSCRIPTION WEEKLY LIMIT, not a metered API
+#                      key. THIS IS THE DEFAULT PATH.
+#   anthropic-api    — direct Anthropic API key (env:ANTHROPIC_API_KEY),
+#                      metered billing, isolates grounding off the weekly
+#                      subscription quota entirely.
+#   openai           — OpenAI-compatible chat completions API
+#                      (env:OPENAI_API_KEY), metered billing.
+#   ollama-local     — a locally-hosted model via Ollama's OpenAI-compatible
+#                      /v1 endpoint. Zero marginal cost, zero quota risk.
+# Env: CRAG_ENGINE_GROUNDING_PROVIDER
+provider = "anthropic-oauth"
+
+# Primary (cheap-tier) model for routine authoring/adjudication.
+# Env: CRAG_ENGINE_GROUNDING_MODEL
+model = "claude-haiku-4-5-20251001"
+
+# Stronger model used for one retry when the primary model produces a hard
+# case (malformed recipe output, or an "uncertain" adjudication verdict).
+# Env: CRAG_ENGINE_GROUNDING_ESCALATION_MODEL
+escalation_model = "claude-sonnet-5"
+
+# Master switch for the escalation retry described above.
+# Env: CRAG_ENGINE_GROUNDING_ESCALATION_ENABLED (1/0)
+escalation_enabled = true
+
+# Where the LLM client sends requests. For anthropic-oauth/anthropic-api this
+# is the vendor endpoint (or a self-hosted gateway); for ollama-local this is
+# the Ollama server's OpenAI-compat base (e.g. http://localhost:11434/v1).
+# Env: CRAG_ENGINE_LLM_BASE_URL
+base_url = "https://api.anthropic.com"
+
+# Where credentials come from.
+#   oauth-credentials     — read ~/.claude/.credentials.json (claudex OAuth)
+#   env:ANTHROPIC_API_KEY — direct Anthropic API key
+#   env:OPENAI_API_KEY    — direct OpenAI API key
+#   none                  — no auth required (local Ollama)
+# Env: CRAG_ENGINE_GROUNDING_AUTH_SOURCE
+auth_source = "oauth-credentials"
+
+# Per-stage output token ceilings. Raised from the old hardcoded 2048/512/512
+# split to a uniform 4096 default (2026-07-05 economics review: 512 was
+# clipping longer recipes/corrections under real load).
+# Env: CRAG_ENGINE_GROUNDING_AUTHOR_MAX_TOKENS / _ADJUDICATE_MAX_TOKENS / _CORRECTION_MAX_TOKENS
+author_max_tokens = 4096
+adjudicate_max_tokens = 4096
+correction_max_tokens = 4096
+
+# Sampling temperature for all grounding LLM calls (deterministic by default
+# — grounding is a judgment task, not creative generation).
+# Env: CRAG_ENGINE_GROUNDING_TEMPERATURE
+temperature = 0.0
+
+# Whether to SEND `temperature` at all. Modern Anthropic models (sonnet-5,
+# haiku-4.5+) reject it with 400 "temperature is deprecated for this model",
+# so it is OMITTED by default. Set true only for providers that accept it
+# (openai / ollama-local). Env: CRAG_ENGINE_GROUNDING_SEND_TEMPERATURE
+send_temperature = false
+
+# Per-call network timeout.
+# Env: CRAG_ENGINE_GROUNDING_TIMEOUT_SEC
+timeout_sec = 30
+
+[grounding.budget]
+# Hard daily caps. When exceeded and pause_on_budget=true, drain_one_job()
+# refuses to start a new LLM-calling job (author/reground/resolve-with-
+# correction) until the next UTC day rolls over — fail-SAFE: the worker
+# pauses itself rather than risk exhausting a shared Claude weekly quota.
+# Daily SAFETY NET only (not the rate limiter — that's min_call_interval_sec).
+# Left at 500: the per-call pacing already keeps the loop gentle; this cap just
+# bounds the worst case if pacing is ever disabled. pause_on_budget hard-stops
+# for the UTC day if hit.
+# Env: CRAG_ENGINE_GROUNDING_DAILY_BUDGET_CALLS / _DAILY_BUDGET_TOKENS
+daily_budget_calls = 500
+daily_budget_tokens = 2000000
+
+# Master switch for the pause-on-exceed behavior above. false = log a
+# warning but keep processing (useful for local-model / zero-cost setups).
+# Env: CRAG_ENGINE_GROUNDING_PAUSE_ON_BUDGET (1/0)
+pause_on_budget = true
+
+# ---------------------------------------------------------------------------
+# [models] — Grounding v3 Claim Layer model roles (model doctrine, 2026-07-17).
+# Provider-AGNOSTIC, provider-UNIFORM: the ONE provider is [grounding.llm].provider
+# above; this section only selects a MODEL per named ROLE within that provider.
+# Roles: decompose | classify | author | verdict | adjudicate. Missing keys
+# fall back to the grounding primary model (decompose/classify/author) or the
+# escalation model (verdict/adjudicate) — delete this section and v3 still works.
+#
+# ROUTING ISOLATION (enforced in db/claim_layer.py assert_no_interactive_proxy):
+# background roles NEVER route via a local interactive-session proxy
+# (:8788 / :8787). For anthropic-oauth, leave base_url unset so the SDK talks
+# DIRECTLY to api.anthropic.com with the oauth token (batch-paced). Set
+# base_url only for a dedicated gateway / metered-key deployment.
+# ---------------------------------------------------------------------------
+[models]
+# Cheap tier for the high-volume, low-judgment stages.
+decompose = "claude-haiku-4-5-20251001"
+classify  = "claude-haiku-4-5-20251001"
+author    = "claude-haiku-4-5-20251001"
+# Stronger tier for the judgment stages (semantic verdict + contradiction adjudication).
+verdict   = "claude-haiku-4-5-20251001"
+adjudicate = "claude-sonnet-5"
+# Autonomic capture's mining role (docs/architecture.md REV 6/9/11) — cheap
+# tier, same routing-isolation guard as every other role (claim_layer.
+# assert_no_interactive_proxy). Falls back to the grounding primary model if
+# this key is absent.
+extract   = "claude-haiku-4-5-20251001"
+# base_url: UNSET => anthropic-oauth talks directly to api.anthropic.com.
+# base_url = "https://api.anthropic.com"
+
+# ---------------------------------------------------------------------------
+# [capture] — Autonomic capture pipeline (docs/architecture.md REV 6/8/9/11).
+# Every key is OPTIONAL; delete this section and db/capture/config.py falls
+# back to these exact defaults. Env var per key: CRAG_ENGINE_CAPTURE_<KEY_UPPER>.
+# ---------------------------------------------------------------------------
+[capture]
+# Recursive glob for the persisted Claude Code session transcripts the
+# tailer adapter reads (claude_code_tailer.py). Default resolves to
+# ~/.claude/projects/**/*.jsonl via os.path.expanduser at import time — NOT
+# hardcoded, so a stranger's clone works unmodified on their own home dir.
+# Env: CRAG_ENGINE_CAPTURE_TRANSCRIPT_GLOB
+# transcript_glob = "~/.claude/projects/**/*.jsonl"
+
+# Dedicated sqlite file tracking per-transcript-file byte-offset watermarks,
+# the per-session daily emit-rate counters, and the processed-span dedup
+# set. Deliberately NOT a table in engine.db (zero migration coupling, zero
+# WAL contention with the live daemon). Default <home>/db/capture-state.db.
+# Env: CRAG_ENGINE_CAPTURE_WATERMARK_STORE
+# watermark_store = "/opt/crag-engine/db/capture-state.db"
+
+# Base URL for POST /capture/event. Default = the resolved daemon_url from
+# [paths] above. Env: CRAG_ENGINE_CAPTURE_DAEMON_URL
+# daemon_url = "http://127.0.0.1:8786"
+
+# Anti-storm caps (REV 6 "rate-limited per session"). max_spans_per_poll
+# bounds one poll() call across all matching files; max_candidates_per_
+# session_run bounds how many candidates ONE session may emit per UTC day.
+# Env: CRAG_ENGINE_CAPTURE_MAX_SPANS_PER_POLL / _MAX_CANDIDATES_PER_SESSION_RUN
+max_spans_per_poll = 50
+max_candidates_per_session_run = 20
+
+# Embedding cosine similarity threshold above which a candidate is treated
+# as "a lesson already known" (noop, REV 6) against ACTIVE insights.
+# Env: CRAG_ENGINE_CAPTURE_DEDUP_SIMILARITY
+dedup_similarity = 0.92
+
+# Model used for the 'extract' role if [models].extract above is absent.
+# Env: CRAG_ENGINE_CAPTURE_EXTRACT_MODEL_FALLBACK
+extract_model_fallback = "claude-haiku-4-5-20251001"
+
+# --- REV 8 (D8): in-daemon capture background task -------------------------
+# When true, the daemon runs the tailer->extractor->emit cycle itself as an
+# asyncio lifespan task (no external scheduler needed). Each cycle runs in a
+# thread (never blocks the event loop) and catches all exceptions (a broken
+# cycle never crashes the daemon). Env: CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED
+daemon_task_enabled = true
+# Seconds between in-daemon capture cycles. Env: CRAG_ENGINE_CAPTURE_DAEMON_TASK_INTERVAL_SEC
+daemon_task_interval_sec = 120
+
+# --- REV 9 §9.2: /capture/event shared-secret auth -------------------------
+# If a token is configured, POST /capture/event must carry a matching
+# X-Capture-Token header (constant-time compared) or it is rejected 401 with
+# no staging write. If NO token is configured, events are accepted (backward
+# compat) but the response carries an `advisory` and the daemon logs a
+# one-time startup warning. Precedence: auth_token_file (a gitignored file
+# whose contents are the token) > env CRAG_ENGINE_CAPTURE_TOKEN > event_token inline.
+# The FILE form is the recommended production posture (never committed,
+# rotatable on disk). Leave both empty to disable auth (loopback-only default).
+# Env: CRAG_ENGINE_CAPTURE_AUTH_TOKEN_FILE / CRAG_ENGINE_CAPTURE_TOKEN
+# auth_token_file = "/opt/crag-engine/db/.capture-token"
+# event_token = ""
+
+# ---------------------------------------------------------------------------
+# [claims] — Grounding v3 claim layer (docs/architecture.md; grounding_config
+# get_claims_config). Flipped on 2026-07-17 after the round-2 quality fixes:
+# claims written without this were not cross-checked for contradictions
+# (audit finding A7 — the flag defaulted False as a one-release rollback
+# guard). Env overrides: CRAG_ENGINE_CLAIMS_ENABLED / CRAG_ENGINE_CLAIM_CONTRADICTION_ENABLED.
+# ---------------------------------------------------------------------------
+[claims]
+claim_contradiction_enabled = true

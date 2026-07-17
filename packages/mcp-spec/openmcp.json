@@ -1,0 +1,948 @@
+{
+  "$schema": "https://openmcp.ai/schema/v1/descriptor.json",
+  "name": "crag-engine",
+  "version": "0.3.2",
+  "description": "crag-engine cross-session memory — 26 MCP tools (generated from capabilities.TOOLS_MANIFEST).",
+  "transport": "stdio",
+  "tools": [
+    {
+      "name": "recall",
+      "description": "Search cross-session memory by meaning. Returns top-K ranked insights plus matching principles. Call on errors, before non-trivial work, or when past sessions are referenced.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural-language query"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (e.g. 'infra'). Omit for cross-project search."
+          },
+          "topk": {
+            "type": "integer",
+            "description": "Number of top insights to return (1-20)"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session id for telemetry (optional)"
+          },
+          "role": {
+            "type": "string",
+            "description": "coordinator|subagent|operator (optional)"
+          },
+          "epic_tag": {
+            "type": "string",
+            "description": "Sprint/epic label (optional)"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "recall_principle",
+      "description": "Search distilled principles — the highest-trust safety rules. Call BEFORE risky operations (VPS, proxies, services, deploys).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Topic to search principles for"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          }
+        },
+        "required": [
+          "topic"
+        ]
+      }
+    },
+    {
+      "name": "recall_by_entity",
+      "description": "Recall insights and principles referencing an exact entity (port, IP, file, service...). Call before changing a port, service, or config you may have touched before.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "Entity value, e.g. '8090' or 'nginx'"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "port|ip|domain|path|service|classname|env_var|file"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max rows (default 20)"
+          }
+        },
+        "required": [
+          "entity"
+        ]
+      }
+    },
+    {
+      "name": "recall_stats",
+      "description": "Engine usage telemetry: hottest insights, top queries, dead-weight and cross-project promotion candidates. Weekly memory-health check.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "Lookback window in days (default 7)"
+          }
+        }
+      }
+    },
+    {
+      "name": "recent_insights",
+      "description": "List recent insights for a project ordered by creation, confidence, or recall frequency. Use at session end to spot promotion/distillation candidates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "Recency window in days (default 30)"
+          },
+          "type": {
+            "type": "string",
+            "description": "Type filter, e.g. gotcha|pattern|decision"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max rows (default 50)"
+          },
+          "order_by": {
+            "type": "string",
+            "description": "created_desc|confidence_desc|recalled_desc"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_principles",
+      "description": "List a project's principles sorted by confidence DESC, optional substring filter. Keep limit <= 20 to avoid flooding context.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max rows; keep <= 20 (50 overflows context)"
+          },
+          "q": {
+            "type": "string",
+            "description": "Content substring filter (optional)"
+          }
+        }
+      }
+    },
+    {
+      "name": "save_insight",
+      "description": "Persist a memory across sessions; dedup-guarded and auto-embedded for recall. Save confirmed root causes, gotchas, patterns, decisions, and corrective user feedback.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Full insight text — detailed enough to be actionable later"
+          },
+          "type": {
+            "type": "string",
+            "description": "gotcha|pattern|architecture|decision|bug-fix|tool|feedback|user-context|project-context|reference"
+          },
+          "tags": {
+            "type": "string",
+            "description": "Comma-separated tags"
+          },
+          "source_file": {
+            "type": "string",
+            "description": "File path this insight refers to (optional)"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Bypass the dedup guard"
+          },
+          "role": {
+            "type": "string",
+            "description": "coordinator|subagent|operator (optional)"
+          },
+          "epic_tag": {
+            "type": "string",
+            "description": "Sprint/epic label (optional)"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session id (optional)"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "suggest_tags",
+      "description": "Suggest existing tags for draft insight content by semantic similarity. Call before save_insight to avoid creating near-duplicate tag variants.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Draft insight text"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max suggestions (default 5)"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "add_token_record",
+      "description": "Append one session row to the token ledger (cost plus recall hit/miss counters). Call at the end of every session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project slug"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Stable session UUID"
+          },
+          "task_summary": {
+            "type": "string",
+            "description": "One-line description of session work"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "description": "Total input tokens"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "description": "Total output tokens"
+          },
+          "cache_hits": {
+            "type": "integer",
+            "description": "Cache-hit count"
+          },
+          "cache_misses": {
+            "type": "integer",
+            "description": "Cache-miss count"
+          },
+          "rtk_savings_pct": {
+            "type": "string",
+            "description": "RTK token reduction %"
+          },
+          "headroom_savings_pct": {
+            "type": "string",
+            "description": "Headroom savings %"
+          },
+          "wall_time_sec": {
+            "type": "integer",
+            "description": "Wall clock seconds"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model ID used"
+          },
+          "recall_hits": {
+            "type": "integer",
+            "description": "Recalls that materially changed the approach"
+          },
+          "recall_misses": {
+            "type": "integer",
+            "description": "Recalls that returned nothing useful"
+          },
+          "repeated_errors": {
+            "type": "integer",
+            "description": "Errors already described by a saved insight"
+          },
+          "novel_saves": {
+            "type": "integer",
+            "description": "Net-new insights saved this session"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      }
+    },
+    {
+      "name": "get",
+      "description": "Fetch insights or principles by explicit ID — no semantic search, single bulk query. Returns {found, not_found}. Use for IDs from recall conflicts, audits, or '#NNNN' references.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "insight or principle"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "List of integer IDs to fetch"
+          }
+        },
+        "required": [
+          "kind",
+          "ids"
+        ]
+      }
+    },
+    {
+      "name": "verify",
+      "description": "Confirm or contradict a claim after acting on it. 'verified' raises confidence, 'stale' lowers it (insight +0.1/-0.2; principle +0.05/-0.1, gentler because curated).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "insight or principle"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Row ID"
+          },
+          "status": {
+            "type": "string",
+            "description": "verified = still true; stale = contradicted by reality"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "update",
+      "description": "Patch an insight or principle in place; ID unchanged, re-embeds on content change. confidence is principle-only; source_file is insight-only. Supply at least one field.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "insight or principle"
+          },
+          "id": {
+            "type": "integer",
+            "description": "Row ID"
+          },
+          "content": {
+            "type": "string",
+            "description": "Full replacement content"
+          },
+          "tags": {
+            "type": "string",
+            "description": "Comma-separated tags"
+          },
+          "source_file": {
+            "type": "string",
+            "description": "Insight-only: file path the insight refers to"
+          },
+          "confidence": {
+            "type": "string",
+            "description": "Principle-only: new confidence 0.0-1.0"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "supersede",
+      "description": "Mark one insight/principle superseded by another of the SAME kind when ground truth proves it wrong. Loser leaves recall but stays queryable by ID for audit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "insight or principle"
+          },
+          "loser_id": {
+            "type": "integer",
+            "description": "Row being retired"
+          },
+          "winner_id": {
+            "type": "integer",
+            "description": "Row that replaces it"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the loser is wrong (audit trail)"
+          }
+        },
+        "required": [
+          "kind",
+          "loser_id",
+          "winner_id"
+        ]
+      }
+    },
+    {
+      "name": "arena",
+      "description": "Adjudicate contradicting insight groups; losers are superseded by the winner. pairs is a list of ID groups — one entry for a single pair. Run dry_run=true first to review verdicts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pairs": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "ID groups to adjudicate, e.g. [[12, 34]] or [[1, 2], [3, 4]]"
+          },
+          "strategy": {
+            "type": "string",
+            "description": "auto=majority vote; recency=newest wins; merge needs merged_content"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Preview verdicts without writing"
+          },
+          "merged_content": {
+            "type": "string",
+            "description": "Required for strategy='merge': the merged insight text"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          }
+        },
+        "required": [
+          "pairs",
+          "strategy"
+        ]
+      }
+    },
+    {
+      "name": "clear_suspect",
+      "description": "Mark flagged contradiction pairs as FALSE POSITIVES and clear them from the audit queue. Entries are {id} or {a_id, b_id}; use after reading both sides of each pair.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pairs": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Entries of shape {id} or {a_id, b_id}; per-entry reason optional"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Default reason for entries that omit one"
+          }
+        },
+        "required": [
+          "pairs"
+        ]
+      }
+    },
+    {
+      "name": "audit",
+      "description": "List open review queues. kind='contradictions': flagged pairs awaiting triage. kind='grounding': drifted-claim queue. kind='drift': insights matching a stale pattern (pattern required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "contradictions = suspect pairs; grounding = drifted claims; drift = stale-pattern scan"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "drift only (required): SQL LIKE substring, e.g. an old IP"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "audit only: max rows (default 100)"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "name": "grounding",
+      "description": "Grounded-memory triage + autonomous resolution. audit=list drift queue; check=get falsifier+liveness; clear=resolve row. jobs=list v2 work queue; history=chain-of-thought; stats=depth+throughput. proposals=list escalations awaiting review; decide=approve|reject a proposal; resolutions=recent autonomous resolutions; revert=undo one; economics=LLM provider/budget/cost.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "audit|check|clear|jobs|history|stats|proposals|resolutions|economics|decide|revert"
+          },
+          "project": {
+            "type": "string",
+            "description": "audit only: scope to a project (optional)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "audit/jobs/proposals/resolutions: max rows (default 100)"
+          },
+          "claim_kind": {
+            "type": "string",
+            "description": "check/clear/history: kind of the claim (insight|principle)"
+          },
+          "claim_id": {
+            "type": "integer",
+            "description": "check/clear/history: ID of the claim"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "clear only: verified|dismissed|noted"
+          },
+          "grounded_against": {
+            "type": "string",
+            "description": "clear only: what was checked and passed"
+          },
+          "reason": {
+            "type": "string",
+            "description": "clear only: optional explanation"
+          },
+          "status": {
+            "type": "string",
+            "description": "jobs/proposals: filter by status (pending|running|done|failed|approved|rejected)"
+          },
+          "proposal_id": {
+            "type": "integer",
+            "description": "decide only: ID of the resolution_proposal to act on"
+          },
+          "decision": {
+            "type": "string",
+            "description": "decide only: approve|reject"
+          },
+          "resolution_id": {
+            "type": "integer",
+            "description": "revert only: ID of the autonomous resolution to undo"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "promote_insight",
+      "description": "Promote insight(s) to a principle seeded at confidence 0.9. One ID = fast-path promote (optional content override); 2+ IDs = merge into one principle (content required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "insight_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Insight IDs; a single ID promotes, several merge"
+          },
+          "content": {
+            "type": "string",
+            "description": "Principle text. Optional override for 1 ID; REQUIRED for 2+"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project for a merged principle (optional)"
+          }
+        },
+        "required": [
+          "insight_ids"
+        ]
+      }
+    },
+    {
+      "name": "health_check",
+      "description": "Structured self-check of the crag-engine across 5 failure classes (proxy cord, embedding backlog, DB corruption, token ledger, VPS tunnel). Call before risky operations.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "session_diary",
+      "description": "Read or write session diary entries. action='add' appends a session record; action='get' returns recent sessions for a project (default last 5).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "add|get"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project slug (required for add; filter for get)"
+          },
+          "date": {
+            "type": "string",
+            "description": "add: ISO date string (default today)"
+          },
+          "accomplished": {
+            "type": "string",
+            "description": "add: what was completed"
+          },
+          "files_changed": {
+            "type": "string",
+            "description": "add: comma-separated file list"
+          },
+          "commits": {
+            "type": "string",
+            "description": "add: commit SHAs or messages"
+          },
+          "decisions": {
+            "type": "string",
+            "description": "add: key decisions made"
+          },
+          "problems": {
+            "type": "string",
+            "description": "add: open issues"
+          },
+          "next_steps": {
+            "type": "string",
+            "description": "add: planned follow-on work"
+          },
+          "session_uuid": {
+            "type": "string",
+            "description": "add: Claude session UUID (migration 029) — when set, enriches the ONE canonical sessions row for this session instead of inserting a new fragmented date-row. Omit for legacy/manual behavior."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "get: max rows to return (default 5)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "project_context",
+      "description": "Read or write structured project context (branch, status, known issues, backlog). action='get' returns current context; action='set' upserts fields (null fields unchanged).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "get|set"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project slug"
+          },
+          "status": {
+            "type": "string",
+            "description": "set: one-line project status"
+          },
+          "current_branch": {
+            "type": "string",
+            "description": "set: active git branch"
+          },
+          "last_session_date": {
+            "type": "string",
+            "description": "set: ISO date of last session"
+          },
+          "architecture_decisions": {
+            "type": "string",
+            "description": "set: free-text ADR summary"
+          },
+          "known_issues": {
+            "type": "string",
+            "description": "set: open bugs / blockers"
+          },
+          "backlog": {
+            "type": "string",
+            "description": "set: comma-separated next tasks"
+          }
+        },
+        "required": [
+          "action",
+          "project"
+        ]
+      }
+    },
+    {
+      "name": "events",
+      "description": "Manage the pending-events queue. action='list' returns pending events; 'add' enqueues a new event; 'claim' marks claimed; 'complete' marks done/failed; 'bulk_expire' expires all matching project/priority.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "list|add|claim|complete|bulk_expire"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project scope filter / target"
+          },
+          "priority": {
+            "type": "string",
+            "description": "critical|high|normal|low (filter or value)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "list: max rows (default 20)"
+          },
+          "source": {
+            "type": "string",
+            "description": "add: event source label"
+          },
+          "event_type": {
+            "type": "string",
+            "description": "add: machine type string"
+          },
+          "summary": {
+            "type": "string",
+            "description": "add: human-readable one-liner"
+          },
+          "payload": {
+            "type": "string",
+            "description": "add: optional JSON payload string"
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "add: optional ISO expiry timestamp"
+          },
+          "id": {
+            "type": "integer",
+            "description": "claim/complete: event ID"
+          },
+          "claimed_by": {
+            "type": "string",
+            "description": "claim: identifier of claiming agent"
+          },
+          "status": {
+            "type": "string",
+            "description": "complete: completed|failed"
+          },
+          "result": {
+            "type": "string",
+            "description": "complete: brief outcome text"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "cost_report",
+      "description": "Token/cost report from the ledger: totals, per-project breakdown, 7-day trend. Use on 'cost report' / 'token stats' / 'how much am I spending'.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Scope to one project (optional)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "Lookback window in days (default 7)"
+          }
+        }
+      }
+    },
+    {
+      "name": "brief",
+      "description": "ONE call returning a coordinator pre-flight brief: top principles, pending events, grounding flags, last session summary, token-ledger nudge. Target <200 ms. Call at session start instead of four separate warm-up queries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project slug for scoped brief"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      }
+    },
+    {
+      "name": "engine_guide",
+      "description": "Return a structured JSON guide to all engine tools, endpoints, and workflows. Call when you are new to the crag-engine system or want to know what's available.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "description": "json (default) | text"
+          }
+        }
+      }
+    },
+    {
+      "name": "graph",
+      "description": "Graph v2 traversal. action='siblings': claims sharing canonical entities. action='neighbors': entity info + typed relations + claims count. action='impact': 1-hop entity neighborhood + all linked claims.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "siblings|neighbors|impact"
+          },
+          "claim_kind": {
+            "type": "string",
+            "description": "siblings: insight|principle"
+          },
+          "claim_id": {
+            "type": "integer",
+            "description": "siblings: integer claim ID"
+          },
+          "entity": {
+            "type": "string",
+            "description": "neighbors/impact: raw entity value"
+          },
+          "entity_type": {
+            "type": "string",
+            "description": "neighbors/impact: port|ip|domain|path|service|file|classname|env_var"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "siblings/neighbors: max results (default 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "disposition_list",
+      "description": "List pending insights_staging entries by tier (t0 auto / t1 agent-delegable / t2 human). Call before draining or triaging the staging proposal ledger.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Scope to a project (optional)"
+          },
+          "tier": {
+            "type": "string",
+            "description": "t0|t1|t2 (optional)"
+          },
+          "status": {
+            "type": "string",
+            "description": "Ledger status filter (default 'pending'; '' = all)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max rows (default 100, <=500)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "disposition_resolve",
+      "description": "Resolve a staging entry: accept (staging->corpus), reject, merge (into target_id via supersede), or defer. Capability-gated at t1/t2; actor attribution is mandatory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "staging_id": {
+            "type": "integer",
+            "description": "insights_staging row id"
+          },
+          "action": {
+            "type": "string",
+            "description": "accept|reject|merge|defer"
+          },
+          "actor": {
+            "type": "string",
+            "description": "Who/what decided - REQUIRED"
+          },
+          "capability": {
+            "type": "string",
+            "description": "granted|human_approved (omit for none)"
+          },
+          "target_id": {
+            "type": "integer",
+            "description": "merge: existing insight id to merge into"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why (audit trail)"
+          }
+        },
+        "required": [
+          "staging_id",
+          "action",
+          "actor"
+        ]
+      }
+    },
+    {
+      "name": "principles_export",
+      "description": "Export principles for the governance back-edge. compile_eligible=true (default) returns ONLY principles whose linked claims roll up fresh.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project scope (optional)"
+          },
+          "compile_eligible": {
+            "type": "boolean",
+            "description": "Filter to fresh/passing claim_health only (default true)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "staging_triage",
+      "description": "Read ONE staging entry + its tier + the matched policy rule. Call before disposition_resolve on an ambiguous (t1/t2) entry.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "staging_id": {
+            "type": "integer",
+            "description": "insights_staging row id"
+          }
+        },
+        "required": [
+          "staging_id"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff
+        run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: model-cache
+          key: model-cache-all-minilm-l6-v2
+      - name: Install package (all extras)
+        run: pip install -e '.[all]'
+      - name: Byte-compile everything
+        run: python -m compileall -q apps db crag_engine packages scripts
+      - name: Timestamp convention gate
+        run: python scripts/test-timestamp-convention.py
+      - name: Run test suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          for t in apps/daemon/tests/test_*.py apps/mcp/tests/test_*.py db/tests/test_*.py; do
+            echo "=== $t ==="
+            if ! python "$t"; then
+              echo "FAILED: $t"
+              fail=1
+            fi
+          done
+          exit $fail
