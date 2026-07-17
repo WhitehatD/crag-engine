@@ -12,6 +12,7 @@ import {
   IconGrounding,
   IconCorpus,
   IconSessions,
+  IconInfra,
   IconHelp,
   IconExternal,
 } from "./components/icons";
@@ -19,8 +20,12 @@ import {
 const Glossary = lazy(() => import("./components/Glossary"));
 
 type IconCmp = (p: { size?: number; className?: string }) => React.ReactNode;
+type NavItem = { to: string; label: string; Icon: IconCmp };
 
-const NAV: { to: string; label: string; Icon: IconCmp }[] = [
+// Fallback nav — used when GET /console/modules fails, is empty, or hasn't
+// resolved yet. The console MUST always render a nav, even against an old
+// daemon that predates the manifest endpoint (fail-soft is mandatory).
+const FALLBACK_NAV: NavItem[] = [
   { to: "/", label: "Loop", Icon: IconLoop },
   { to: "/claims", label: "Claims", Icon: IconClaims },
   { to: "/review", label: "Review", Icon: IconReview },
@@ -28,6 +33,43 @@ const NAV: { to: string; label: string; Icon: IconCmp }[] = [
   { to: "/corpus", label: "Corpus", Icon: IconCorpus },
   { to: "/sessions", label: "Sessions", Icon: IconSessions },
 ];
+
+// Manifest icon key -> component. Unknown keys fall back to IconLoop so a
+// forward-compatible daemon (new module, old console build) never renders a
+// blank nav item.
+const ICON_MAP: Record<string, IconCmp> = {
+  loop: IconLoop,
+  claims: IconClaims,
+  review: IconReview,
+  grounding: IconGrounding,
+  corpus: IconCorpus,
+  sessions: IconSessions,
+  infra: IconInfra,
+};
+
+interface ConsoleModule {
+  id: string;
+  title: string;
+  icon: string;
+  route: string;
+  panels: string[];
+}
+
+function useNav(): NavItem[] {
+  const { data } = useQuery({
+    queryKey: ["console_modules"],
+    queryFn: () => api.get<{ ok: boolean; modules: ConsoleModule[] }>("/console/modules"),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const modules = data?.modules;
+  if (!modules || modules.length === 0) return FALLBACK_NAV;
+  return modules.map((m) => ({
+    to: m.route,
+    label: m.title,
+    Icon: ICON_MAP[m.icon] ?? IconLoop,
+  }));
+}
 
 function HealthDot() {
   const { data } = useQuery({
@@ -86,11 +128,12 @@ function isActive(path: string, to: string) {
 export function RootLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [glossaryOpen, setGlossary] = useGlossary();
+  const nav = useNav();
 
   // Embed protocol: announce ready + start height reporting once mounted.
   useEffect(() => {
     if (IS_EMBED) {
-      const view = NAV.find((n) => isActive(path, n.to))?.to ?? path;
+      const view = nav.find((n) => isActive(path, n.to))?.to ?? path;
       postReady(view);
       installHeightReporter();
     }
@@ -113,7 +156,7 @@ export function RootLayout() {
           </Link>
           {/* Desktop nav — hidden on mobile (bottom tab bar takes over). */}
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV.map((n) => {
+            {nav.map((n) => {
               const act = isActive(path, n.to);
               return (
                 <Link
@@ -156,7 +199,7 @@ export function RootLayout() {
       {/* Mobile bottom tab bar — 6 icons + labels, safe-area padded. */}
       {!IS_EMBED && (
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-safe md:hidden">
-          {NAV.map((n) => {
+          {nav.map((n) => {
             const act = isActive(path, n.to);
             return (
               <Link

@@ -20,7 +20,7 @@ Covers:
                  (id kind title why evidence actions), and total is accurate.
   T_RULES      — active principle appears; superseded one does not; claim_health
                  present; stale flag set when the rollup verdict is stale.
-  T_MODULES    — the 5 core modules, stable ids/routes.
+  T_MODULES    — the 6 core modules, stable ids/routes.
   T_FAILSOFT   — a builder against a DB missing a table degrades, never raises.
 
 Exit codes: 0 = all pass, 1 = any failure.
@@ -288,7 +288,8 @@ def test_rules():
 def test_modules():
     m = agg.build_modules()
     ids = [x["id"] for x in m["modules"]]
-    check("T_MODULES_five_core", ids == ["memory", "inbox", "browser", "rules", "systems"], str(ids))
+    check("T_MODULES_six_core",
+          ids == ["loop", "claims", "review", "grounding", "corpus", "sessions"], str(ids))
     check("T_MODULES_routes", all("route" in x and "panels" in x for x in m["modules"]), str(m))
 
 

@@ -111,6 +111,17 @@ export const IconClose = ({ size = 16, className }: P) =>
 export const IconChevron = ({ size = 16, className }: P) =>
   svg(size, className, <path d="M4 6l4 4 4-4" />);
 
+// Infra — a small server/stack glyph (ops overlay module).
+export const IconInfra = ({ size = 16, className }: P) =>
+  svg(size, className, (
+    <>
+      <rect x="2.5" y="2.5" width="11" height="4" rx="1" />
+      <rect x="2.5" y="9.5" width="11" height="4" rx="1" />
+      <path d="M5 4.5h.01" />
+      <path d="M5 11.5h.01" />
+    </>
+  ));
+
 // External link — for the "powered by crag" badge.
 export const IconExternal = ({ size = 16, className }: P) =>
   svg(size, className, (

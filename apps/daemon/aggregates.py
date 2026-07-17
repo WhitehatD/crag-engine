@@ -292,11 +292,12 @@ def build_rules(conn, project: Optional[str] = None) -> dict:
 # ----------------------------------------------------------------------------
 
 CORE_MODULES = [
-    {"id": "memory", "title": "Memory", "icon": "brain", "route": "/", "panels": ["overview"]},
-    {"id": "inbox", "title": "Needs You", "icon": "inbox", "route": "/inbox", "panels": ["inbox"]},
-    {"id": "browser", "title": "Browser", "icon": "search", "route": "/memory", "panels": ["corpus"]},
-    {"id": "rules", "title": "Rules", "icon": "scale", "route": "/rules", "panels": ["rules"]},
-    {"id": "systems", "title": "Systems", "icon": "cpu", "route": "/systems", "panels": ["grounding", "capture"]},
+    {"id": "loop", "title": "Loop", "icon": "loop", "route": "/", "panels": ["overview"]},
+    {"id": "claims", "title": "Claims", "icon": "claims", "route": "/claims", "panels": ["claims"]},
+    {"id": "review", "title": "Review", "icon": "review", "route": "/review", "panels": ["disposition"]},
+    {"id": "grounding", "title": "Grounding", "icon": "grounding", "route": "/grounding", "panels": ["grounding"]},
+    {"id": "corpus", "title": "Corpus", "icon": "corpus", "route": "/corpus", "panels": ["corpus"]},
+    {"id": "sessions", "title": "Sessions", "icon": "sessions", "route": "/sessions", "panels": ["sessions"]},
 ]
 
 

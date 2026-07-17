@@ -62,6 +62,16 @@ const sessionsRoute = createRoute({
   component: lazyRouteComponent(() => import("./routes/Sessions")),
 });
 
+// Infra — the ops overlay's page shell. The route lives in the public console
+// (harmless, empty on the public engine); the private ops daemon's /infra/*
+// endpoints populate it only where they exist. See aggregates.py CORE_MODULES
+// + brain/apps/daemon/ops_infra.py.
+const infraRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/infra",
+  component: lazyRouteComponent(() => import("./routes/Infra")),
+});
+
 const routeTree = rootRoute.addChildren([
   loopRoute,
   claimsRoute,
@@ -69,6 +79,7 @@ const routeTree = rootRoute.addChildren([
   groundingRoute,
   corpusRoute,
   sessionsRoute,
+  infraRoute,
 ]);
 
 export const router = createRouter({
