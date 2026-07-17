@@ -40,6 +40,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Several suites use LIVE_DB = REPO_ROOT/db/engine.db as a read-only
+          # SCHEMA SOURCE for their temp fixtures (build_temp_db pattern). On a
+          # bare runner that file doesn't exist ("unable to open database
+          # file"), and a raw empty file would miss tables ("no such table:
+          # entity_links"). Bootstrap a fully-migrated empty engine.db in the
+          # checkout — same schema+migrations path the daemon's fresh-DB
+          # bootstrap applies. (db/*.db is gitignored; runner-local only.)
+          python - <<'BOOTSTRAP'
+          import sqlite3, pathlib
+          db = pathlib.Path("db/engine.db")
+          conn = sqlite3.connect(db)
+          conn.executescript(pathlib.Path("db/schema.sql").read_text(encoding="utf-8"))
+          for m in sorted(pathlib.Path("db/migrations").glob("*.sql")):
+              try:
+                  conn.executescript(m.read_text(encoding="utf-8"))
+              except sqlite3.OperationalError as e:
+                  print(f"migration {m.name}: skipped ({e})")
+          conn.commit(); conn.close()
+          print("bootstrap schema DB ready:", db)
+          BOOTSTRAP
           fail=0
           for t in apps/daemon/tests/test_*.py apps/mcp/tests/test_*.py db/tests/test_*.py; do
             echo "=== $t ==="
