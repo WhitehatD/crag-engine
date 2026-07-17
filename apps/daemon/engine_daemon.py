@@ -2059,6 +2059,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="crag engine daemon", version=VERSION, lifespan=lifespan)
 
+# Read-model aggregates for the surface consumers (CLI/console/cloud/ops) —
+# /overview /inbox /rules /console/modules. ONE contract, four consumers
+# (infra-playbook docs/system-integration-map.md §2). Fail-soft: if the module
+# is absent the daemon simply runs without those routes.
+try:
+    import aggregates as _aggregates
+    _aggregates.bind(
+        get_db=get_db,
+        table_exists=_table_exists,
+        claim_layer=(_claim_layer if _CLAIM_LAYER else None),
+    )
+    app.include_router(_aggregates.router)
+except ImportError as _agg_err:  # pragma: no cover
+    import builtins
+    builtins.print(f"[daemon] aggregates (surface read-model) not found ({_agg_err}) — /overview /inbox /rules disabled")
+
 
 # ---------------------------------------------------------------------------
 # Event journal — append-only ring buffer of state-change events.
