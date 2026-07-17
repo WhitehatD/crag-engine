@@ -10782,20 +10782,42 @@ def _mount_console() -> None:
         logger.info("console dist absent — /console serves build hint (fail-soft)")
         return
 
+    # Config-driven frame policy for embedding. When
+    # CRAG_ENGINE_CONSOLE_FRAME_ANCESTORS is set (space-separated origins), the
+    # console mount emits a CSP frame-ancestors header so those hosts may iframe
+    # it (e.g. "https://app.crag.sh"). Unset => no header, browser same-origin
+    # default applies. Scoped to the console static mount only — the API is
+    # untouched.
+    _frame_ancestors = os.environ.get("CRAG_ENGINE_CONSOLE_FRAME_ANCESTORS", "").strip()
+
     class _SpaStaticFiles(StaticFiles):
         """StaticFiles that falls back to index.html for unmatched paths so the
-        client-side router owns deep links (/console/claims etc.)."""
+        client-side router owns deep links (/console/claims etc.), and stamps the
+        optional frame-ancestors CSP so the console can be embedded off-origin."""
+
+        def _apply_frame_policy(self, response):
+            if _frame_ancestors:
+                response.headers["Content-Security-Policy"] = (
+                    f"frame-ancestors {_frame_ancestors}"
+                )
+            return response
 
         async def get_response(self, path, scope):
             try:
-                return await super().get_response(path, scope)
+                return self._apply_frame_policy(await super().get_response(path, scope))
             except Exception:
                 # 404 from a missing file (client route) -> serve the SPA shell.
-                return FileResponse(_CONSOLE_DIST / "index.html")
+                return self._apply_frame_policy(
+                    FileResponse(_CONSOLE_DIST / "index.html")
+                )
 
     app.mount("/console", _SpaStaticFiles(directory=str(_CONSOLE_DIST), html=True),
               name="console")
-    logger.info("console mounted at /console from %s", _CONSOLE_DIST)
+    logger.info(
+        "console mounted at /console from %s (frame-ancestors=%s)",
+        _CONSOLE_DIST,
+        _frame_ancestors or "unset",
+    )
 
 
 _mount_console()
