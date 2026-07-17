@@ -1,0 +1,12 @@
+crag-engine
+Copyright 2026 Alexandru Cioc (WhitehatD)
+
+This product is part of the crag ecosystem (https://crag.sh) — the
+reliability layer for AI coding agents.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). The ee/
+directory is excluded from the Apache-2.0 grant and carries its own
+commercial license (see ee/LICENSE).
+
+This product bundles no third-party source. Runtime dependencies are
+installed separately via pip and retain their own licenses.

@@ -12,7 +12,7 @@ description = "The verified-memory engine for crag — claim layer, grounding, d
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-authors = [{ name = "crag contributors" }]
+authors = [{ name = "Alexandru Cioc (WhitehatD)" }]
 keywords = ["claude-code", "cursor", "memory", "grounding", "mcp", "crag"]
 
 # Core runtime — the daemon's HTTP stack + the MCP client + numpy data plane.
