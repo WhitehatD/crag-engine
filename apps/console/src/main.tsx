@@ -10,7 +10,10 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 3000,
+      // Views set their own refetchInterval for live data; a 10s staleTime
+      // means tab-hopping between views re-renders from cache instead of
+      // re-hitting the daemon on every mount.
+      staleTime: 10_000,
     },
   },
 });

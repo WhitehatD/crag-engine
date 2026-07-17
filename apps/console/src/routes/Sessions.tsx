@@ -10,9 +10,10 @@ import {
   Chip,
   Sparkline,
   Select,
-  Empty,
+  RefreshBar,
   truncate,
 } from "../components/primitives";
+import { ViewHeader, TeachingEmpty, Skeleton } from "../components/explain";
 import type { CostReport, Slo } from "../lib/types";
 
 interface SessionRow {
@@ -81,7 +82,7 @@ function CostTiles() {
             ))}
           </Table>
         ) : (
-          <Empty label="loading…" />
+          <Skeleton rows={4} />
         )}
       </Section>
     </div>
@@ -130,9 +131,12 @@ function RecallStatsTile() {
   return (
     <Section title="Hot insights (7d recall)">
       {!data ? (
-        <Empty label="loading…" />
+        <Skeleton rows={4} />
       ) : data.hot_insights.length === 0 ? (
-        <Empty label="no recalls in window" />
+        <TeachingEmpty title="No recalls in window">
+          This ranks the insights recalled most in the last 7 days — the engine's
+          hot working set. It fills as agents query memory during sessions.
+        </TeachingEmpty>
       ) : (
         <Table head={["id", "hits", "content"]}>
           {data.hot_insights.slice(0, 10).map((h) => (
@@ -186,9 +190,13 @@ function SessionsTable() {
         />
       }
     >
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton rows={4} />}
       {data && data.sessions.length === 0 && !isLoading && (
-        <Empty label="no sessions for this project" />
+        <TeachingEmpty title="No sessions for this project">
+          Sessions are logged at the end of an agent's work — what was
+          accomplished, files changed, commits, and duration. Pick another project
+          or run a session to populate this.
+        </TeachingEmpty>
       )}
       {data && data.sessions.length > 0 && (
         <Table head={["date", "commits", "files", "wall", "accomplished"]}>
@@ -210,8 +218,34 @@ function SessionsTable() {
 }
 
 export default function Sessions() {
+  const cost = useQuery({
+    queryKey: ["cost_report"],
+    queryFn: () => api.get<CostReport>("/lifecycle/cost_report?days=7"),
+    refetchInterval: 30000,
+  });
   return (
     <div className="space-y-5">
+      <ViewHeader
+        id="sessions"
+        title="Sessions"
+        subtitle="Operational telemetry — cost, SLOs, recall efficiency, and session history."
+        right={
+          <RefreshBar
+            updatedAt={cost.dataUpdatedAt}
+            isFetching={cost.isFetching}
+            onRefresh={() => cost.refetch()}
+          />
+        }
+        about={
+          <>
+            This view is the operator's cockpit for the engine's running cost and
+            health. It reports token spend and session counts, service-level
+            objectives, how often memory recalls actually change an agent's
+            approach, and a per-project log of what recent sessions accomplished.
+            Use it to see whether the loop is paying for itself.
+          </>
+        }
+      />
       <CostTiles />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SloTile />

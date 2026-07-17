@@ -6,7 +6,23 @@ import {
 } from "@tanstack/react-router";
 import { RootLayout } from "./root";
 
-const rootRoute = createRootRoute({ component: RootLayout });
+// Permissive root search: preserve every query key across navigation so
+// ?embed=1 and ?glossary=1 survive client-side route changes, and per-view
+// filter params (predicate_class, verdict, tab, offset, …) round-trip through
+// the URL for shareable deep links.
+type RootSearch = Record<string, string | number | undefined>;
+
+const rootRoute = createRootRoute({
+  component: RootLayout,
+  validateSearch: (search: Record<string, unknown>): RootSearch => {
+    const out: RootSearch = {};
+    for (const [k, v] of Object.entries(search)) {
+      if (v === undefined || v === null || v === "") continue;
+      out[k] = typeof v === "number" ? v : String(v);
+    }
+    return out;
+  },
+});
 
 // Each view is lazy-loaded so the initial payload only carries the shell + the
 // landing route. Keeps the gzip budget honest.

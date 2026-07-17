@@ -61,3 +61,69 @@
     scrollbar-color: var(--color-border) transparent;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Responsive table. Desktop keeps the real <table>. Below 768px each row
+   collapses to a stacked card and each cell prefixes its column label (carried
+   in data-label by the Cell primitive). One rule set — views never fork markup.
+   --------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  table.rtable,
+  table.rtable tbody,
+  table.rtable tr,
+  table.rtable td {
+    display: block;
+    width: 100%;
+  }
+  table.rtable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  table.rtable tr {
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: 0.25rem 0.5rem;
+    background: var(--color-surface);
+  }
+  table.rtable td {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    border: 0 !important;
+    padding: 0.3rem 0.25rem;
+    min-height: 40px;
+  }
+  table.rtable td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 34%;
+    max-width: 34%;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted);
+    padding-top: 1px;
+  }
+  /* Comfortable tap targets for interactive rows on touch. */
+  table.rtable tr[class*="cursor-pointer"] {
+    min-height: 44px;
+  }
+}
+
+/* Bottom-nav safe-area padding (iOS home indicator etc.). */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Keyboard cursor (j/k) highlight in the Review ledger. */
+[data-triage-row][data-cursor="1"] {
+  color: var(--color-focus);
+  font-weight: 600;
+}

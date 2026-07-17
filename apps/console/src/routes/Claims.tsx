@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { api } from "../lib/api";
+import { useUrlState, useUrlNumber } from "../lib/urlstate";
 import {
   Section,
   Table,
@@ -15,9 +16,15 @@ import {
   Pager,
   Empty,
   Btn,
+  RefreshBar,
   truncate,
   ageOf,
 } from "../components/primitives";
+import {
+  ViewHeader,
+  TeachingEmpty,
+  Skeleton,
+} from "../components/explain";
 import type {
   ClaimsResponse,
   ClaimDetail,
@@ -45,13 +52,26 @@ const VERDICT_OPTS = [
 const LIMIT = 50;
 
 function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({
     queryKey: ["claim", id],
     queryFn: () => api.get<ClaimDetail>(`/claims/${id}`),
   });
+  // A parent chip navigates to Corpus filtered to that insight/principle id —
+  // click-through from a claim up to the memory it came from.
+  const openParent = (kind: "insights" | "principles", pid: number) =>
+    navigate({
+      to: "/corpus",
+      search: (prev: Record<string, string | number | undefined>) => ({
+        ...prev,
+        tab: kind === "principles" ? "principles" : "insights",
+        q: String(pid),
+      }),
+    });
+
   return (
     <Drawer open onClose={onClose} title={<span className="num">claim #{id}</span>}>
-      {isLoading && <div className="text-[var(--color-muted)]">loading…</div>}
+      {isLoading && <Skeleton rows={4} />}
       {data?.ok && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -66,7 +86,7 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
           {data.predicate_spec != null && (
             <div>
               <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-                predicate spec
+                predicate spec — the executable falsifier for this claim
               </div>
               <pre className="num overflow-auto rounded-[7px] border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-[12px]">
                 {JSON.stringify(data.predicate_spec, null, 2)}
@@ -94,23 +114,29 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
 
           <div>
             <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-              parents
+              parents — the memory this claim was decomposed from
             </div>
             {data.parents.insights.length === 0 &&
             data.parents.principles.length === 0 ? (
-              <div className="text-[12px] text-[var(--color-muted)]">none</div>
+              <div className="text-[12px] text-[var(--color-muted)]">
+                orphan claim — no parent insight or principle
+              </div>
             ) : (
               <ul className="space-y-1.5">
                 {data.parents.insights.map((p) => (
                   <li key={`i${p.id}`} className="text-[12px]">
-                    <Chip>insight #{p.id}</Chip>{" "}
+                    <button onClick={() => openParent("insights", p.id)}>
+                      <Chip>insight #{p.id} ↗</Chip>
+                    </button>{" "}
                     <span className="text-[var(--color-muted)]">{p.role}</span>{" "}
                     {truncate(p.preview ?? "", 100)}
                   </li>
                 ))}
                 {data.parents.principles.map((p) => (
                   <li key={`p${p.id}`} className="text-[12px]">
-                    <Chip fg="#22d3ee">principle #{p.id}</Chip>{" "}
+                    <button onClick={() => openParent("principles", p.id)}>
+                      <Chip fg="#22d3ee">principle #{p.id} ↗</Chip>
+                    </button>{" "}
                     <span className="text-[var(--color-muted)]">{p.role}</span>{" "}
                     {truncate(p.preview ?? "", 100)}
                   </li>
@@ -121,11 +147,11 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
 
           <div>
             <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-              grounding history
+              grounding history — every time this claim was checked against reality
             </div>
             {data.grounding_history.length === 0 ? (
               <div className="text-[12px] text-[var(--color-muted)]">
-                no grounding runs yet
+                no grounding runs yet — this claim is unverified
               </div>
             ) : (
               <ul className="space-y-2">
@@ -141,7 +167,13 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
                       <Chip>{h.job_type}</Chip>
                       {h.verdict && (
                         <VerdictChip
-                          verdict={h.verdict === "pass" ? "fresh" : h.verdict === "fail" ? "stale" : "unverified"}
+                          verdict={
+                            h.verdict === "pass"
+                              ? "fresh"
+                              : h.verdict === "fail"
+                                ? "stale"
+                                : "unverified"
+                          }
                         />
                       )}
                     </div>
@@ -165,21 +197,23 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
 }
 
 function ClaimsTab() {
-  const [pclass, setPclass] = useState("");
-  const [verdict, setVerdict] = useState("");
-  const [entity, setEntity] = useState("");
-  const [q, setQ] = useState("");
-  const [offset, setOffset] = useState(0);
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [pclass, setPclass] = useUrlState("predicate_class");
+  const [verdict, setVerdict] = useUrlState("verdict");
+  const [entity, setEntity] = useUrlState("entity");
+  const [project, setProject] = useUrlState("project");
+  const [q, setQ] = useUrlState("q");
+  const [offset, setOffset] = useUrlNumber("offset");
+  const [openId, setOpenId] = useUrlNumber("claim", -1);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["claims", pclass, verdict, entity, q, offset],
+  const query = useQuery({
+    queryKey: ["claims", pclass, verdict, entity, project, q, offset],
     queryFn: () =>
       api.get<ClaimsResponse>(
         `/claims${api.qs({
           predicate_class: pclass,
           verdict,
           entity,
+          project,
           q,
           limit: LIMIT,
           offset,
@@ -187,24 +221,29 @@ function ClaimsTab() {
       ),
     refetchInterval: 15000,
   });
+  const { data, isLoading, error } = query;
 
-  const resetPage = <T,>(setter: (v: T) => void) => (v: T) => {
-    setOffset(0);
-    setter(v);
-  };
+  const resetPage =
+    (setter: (v: string) => void) =>
+    (v: string) => {
+      setOffset(0);
+      setter(v);
+    };
 
   return (
     <Section
       title="Claims"
       right={
-        data && (
-          <Pager
-            offset={offset}
-            limit={LIMIT}
-            total={data.total}
-            onPage={setOffset}
+        <div className="flex items-center gap-3">
+          <RefreshBar
+            updatedAt={query.dataUpdatedAt}
+            isFetching={query.isFetching}
+            onRefresh={() => query.refetch()}
           />
-        )
+          {data && (
+            <Pager offset={offset} limit={LIMIT} total={data.total} onPage={setOffset} />
+          )}
+        </div>
       }
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -212,12 +251,22 @@ function ClaimsTab() {
         <Select value={verdict} onChange={resetPage(setVerdict)} options={VERDICT_OPTS} />
         <Input value={entity} onChange={resetPage(setEntity)} placeholder="entity" />
         <Input value={q} onChange={resetPage(setQ)} placeholder="search text" />
+        {project && (
+          <button onClick={() => resetPage(setProject)("")}>
+            <Chip fg="#22d3ee">project: {project} ✕</Chip>
+          </button>
+        )}
       </div>
 
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton />}
       {error && <Empty label={`error: ${(error as Error).message}`} />}
       {data && data.claims.length === 0 && !isLoading && (
-        <Empty label="no claims match" />
+        <TeachingEmpty title="No claims match">
+          Claims are atomic, machine-checkable statements decomposed from insights.
+          None match these filters — widen the class or verdict, or clear the
+          entity/text search. Claims appear here once insights in the Corpus are
+          decomposed and classified.
+        </TeachingEmpty>
       )}
       {data && data.claims.length > 0 && (
         <Table head={["id", "class", "verdict", "claim", "entity", "parents", "grounded"]}>
@@ -246,16 +295,14 @@ function ClaimsTab() {
           ))}
         </Table>
       )}
-      {openId !== null && (
-        <ClaimDrawer id={openId} onClose={() => setOpenId(null)} />
-      )}
+      {openId >= 0 && <ClaimDrawer id={openId} onClose={() => setOpenId(-1)} />}
     </Section>
   );
 }
 
 function ContradictionsTab() {
-  const [offset, setOffset] = useState(0);
-  const { data, isLoading } = useQuery({
+  const [offset, setOffset] = useUrlNumber("coffset");
+  const query = useQuery({
     queryKey: ["claim_contradictions", offset],
     queryFn: () =>
       api.get<ContradictionsResponse>(
@@ -263,18 +310,30 @@ function ContradictionsTab() {
       ),
     refetchInterval: 20000,
   });
+  const { data, isLoading } = query;
   return (
     <Section
       title="Open claim contradictions"
       right={
-        data && (
-          <Pager offset={offset} limit={25} total={data.total} onPage={setOffset} />
-        )
+        <div className="flex items-center gap-3">
+          <RefreshBar
+            updatedAt={query.dataUpdatedAt}
+            isFetching={query.isFetching}
+            onRefresh={() => query.refetch()}
+          />
+          {data && (
+            <Pager offset={offset} limit={25} total={data.total} onPage={setOffset} />
+          )}
+        </div>
       }
     >
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton rows={3} />}
       {data && data.pairs.length === 0 && !isLoading && (
-        <Empty label="no open contradictions" />
+        <TeachingEmpty title="No open contradictions">
+          When two grounded claims share an entity but assert opposite things, the
+          detector flags them here as a pair for side-by-side review. An empty
+          queue means the claim graph is internally consistent right now.
+        </TeachingEmpty>
       )}
       <div className="space-y-3">
         {data?.pairs.map((p) => (
@@ -282,16 +341,19 @@ function ContradictionsTab() {
             key={p.id}
             className="rounded-[12px] border border-[var(--color-border)] p-3"
           >
-            <div className="mb-2 flex items-center gap-2 text-[12px]">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[12px]">
               <Chip fg="#ef4444">pair #{p.id}</Chip>
-              {p.shared_entity && <Chip>entity: {p.shared_entity}</Chip>}
+              {p.shared_entity && <Chip>shared entity: {p.shared_entity}</Chip>}
               <span className="num text-[var(--color-muted)]">
                 {ageOf(p.detected_at)}
               </span>
               {p.reason && (
-                <span className="text-[var(--color-muted)]">{truncate(p.reason, 60)}</span>
+                <span className="text-[var(--color-muted)]">
+                  {truncate(p.reason, 60)}
+                </span>
               )}
             </div>
+            {/* Side-by-side comparison — the two conflicting claims aligned. */}
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {[p.claim_a, p.claim_b].map((c, i) =>
                 c ? (
@@ -323,9 +385,26 @@ function ContradictionsTab() {
 }
 
 export default function Claims() {
-  const [tab, setTab] = useState<"claims" | "contradictions">("claims");
+  const [tab, setTab] = useUrlState("tab", "claims");
   return (
     <div className="space-y-4">
+      <ViewHeader
+        id="claims"
+        title="Claims"
+        subtitle="Atomic, machine-checkable statements decomposed from insights."
+        about={
+          <>
+            Every insight is broken into <b>claims</b> — the smallest unit the
+            engine can verify. Each carries a predicate class: <b>P1</b> mechanical
+            (shell probe), <b>P2</b> documentary (source anchor), <b>P3</b>{" "}
+            temporal, <b>P4</b> semantic (LLM judgement), <b>P5</b> axiomatic
+            (never probed). A claim's <b>verdict</b> is its liveness after
+            grounding. Click any row for its predicate, entities, parent memory,
+            and full grounding history. The Contradictions tab pairs claims that
+            share an entity but disagree.
+          </>
+        }
+      />
       <div className="flex items-center gap-2">
         <Btn tone={tab === "claims" ? "brand" : "default"} onClick={() => setTab("claims")}>
           Claims
@@ -337,7 +416,7 @@ export default function Claims() {
           Contradictions
         </Btn>
       </div>
-      {tab === "claims" ? <ClaimsTab /> : <ContradictionsTab />}
+      {tab === "contradictions" ? <ContradictionsTab /> : <ClaimsTab />}
     </div>
   );
 }

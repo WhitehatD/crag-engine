@@ -1,5 +1,14 @@
-import type { ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { Link } from "@tanstack/react-router";
 import type { Verdict } from "../lib/types";
+import { Defined, Tooltip } from "./explain";
+import { IconRefresh, IconClose } from "./icons";
 
 // Hand-rolled primitives in the crag theme. No component library.
 
@@ -31,14 +40,22 @@ export function StatCard({
   label,
   value,
   sub,
-  href,
+  to,
+  search,
   tone = "default",
+  hint,
+  spark,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
-  href?: string;
+  // `to` is a router path (e.g. "/claims"); the card client-navigates, keeping
+  // ?embed and other search params intact. `search` presets filters on arrival.
+  to?: string;
+  search?: Record<string, string>;
   tone?: "default" | "brand" | "warn" | "danger";
+  hint?: string;
+  spark?: ReactNode;
 }) {
   const toneColor = {
     default: "var(--color-text)",
@@ -47,17 +64,46 @@ export function StatCard({
     danger: "var(--color-red)",
   }[tone];
   const inner = (
-    <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 transition-colors hover:border-[var(--color-focus)]">
-      <div className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-        {label}
+    <div
+      className={
+        "flex h-full flex-col rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 transition-colors " +
+        (to ? "hover:border-[var(--color-focus)]" : "")
+      }
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+          {label}
+        </span>
+        {to && (
+          <span className="ml-auto text-[var(--color-muted)] opacity-60" aria-hidden>
+            ↗
+          </span>
+        )}
       </div>
       <div className="num mt-1 text-2xl leading-none" style={{ color: toneColor }}>
         {value}
       </div>
       {sub && <div className="mt-1 text-[11px] text-[var(--color-muted)]">{sub}</div>}
+      {spark && <div className="mt-2">{spark}</div>}
     </div>
   );
-  return href ? <a href={href}>{inner}</a> : inner;
+  const wrapped = hint ? (
+    <Tooltip label={hint}>{inner}</Tooltip>
+  ) : (
+    inner
+  );
+  return to ? (
+    <Link
+      to={to}
+      search={search as never}
+      className="block h-full outline-none"
+      title={hint}
+    >
+      {inner}
+    </Link>
+  ) : (
+    wrapped
+  );
 }
 
 const VERDICT_TONE: Record<string, { fg: string; bg: string }> = {
@@ -106,9 +152,11 @@ export function Chip({
 export function VerdictChip({ verdict }: { verdict: Verdict | string }) {
   const t = VERDICT_TONE[verdict] ?? VERDICT_TONE.unverified;
   return (
-    <Chip fg={t.fg} bg={t.bg}>
-      {verdict}
-    </Chip>
+    <Defined token={String(verdict)}>
+      <Chip fg={t.fg} bg={t.bg}>
+        {verdict}
+      </Chip>
+    </Defined>
   );
 }
 
@@ -116,9 +164,21 @@ export function ClassChip({ pclass }: { pclass: string | null }) {
   if (!pclass) return <Chip>—</Chip>;
   const fg = CLASS_TONE[pclass] ?? "var(--color-muted)";
   return (
-    <Chip fg={fg} bg="var(--color-surface-2)">
-      {pclass}
-    </Chip>
+    <Defined token={pclass}>
+      <Chip fg={fg} bg="var(--color-surface-2)">
+        {pclass}
+      </Chip>
+    </Defined>
+  );
+}
+
+// A tier badge (t0/t1/t2) with its glossary definition on hover/tap.
+export function TierChip({ tier }: { tier: string | null | undefined }) {
+  const t = (tier ?? "").toLowerCase();
+  return (
+    <Defined token={t}>
+      <Chip fg="#22d3ee">{(tier ?? "?").toUpperCase()}</Chip>
+    </Defined>
   );
 }
 
@@ -133,25 +193,42 @@ export function Drawer({
   title: ReactNode;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   if (!open) return null;
   return (
+    // On <640px the drawer is a full-screen sheet (justify-end still, but the
+    // aside takes full width and the backdrop is edge-to-edge). On >=640px it is
+    // the familiar right-hand rail.
     <div className="fixed inset-0 z-40 flex justify-end">
       <div
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
         aria-hidden
       />
-      <aside className="relative z-50 flex h-full w-full max-w-2xl flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)]">
+      <aside className="relative z-50 flex h-full w-full flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] sm:max-w-2xl">
         <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
           <div className="text-[13px] font-medium">{title}</div>
           <button
             onClick={onClose}
-            className="rounded-[7px] border border-[var(--color-border)] px-2 py-1 text-[12px] text-[var(--color-muted)] hover:text-[var(--color-text)]"
+            aria-label="close"
+            className="flex h-9 w-9 items-center justify-center rounded-[7px] border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"
           >
-            close
+            <IconClose size={15} />
           </button>
         </header>
-        <div className="flex-1 overflow-auto p-4">{children}</div>
+        <div
+          className="flex-1 overflow-auto p-4"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          {children}
+        </div>
       </aside>
     </div>
   );
@@ -183,6 +260,12 @@ export function Sparkline({
   );
 }
 
+// Responsive table. Desktop (>=768px): a real <table>. Mobile (<768px): every
+// row collapses to a stacked card and every cell prefixes its column label
+// (carried via context so views never fork markup per breakpoint). Driven by
+// the `.rtable` CSS in theme.css.
+const TableHeadCtx = createContext<ReactNode[]>([]);
+
 export function Table({
   head,
   children,
@@ -191,22 +274,29 @@ export function Table({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[13px]">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] text-left text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-            {head.map((h, i) => (
-              <th key={i} className="px-3 py-2 font-medium">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
+    <TableHeadCtx.Provider value={head}>
+      {/* Desktop: contained horizontal scroll if columns overflow (never page-
+          level). Mobile: rtable stacks rows into cards, so nothing overflows. */}
+      <div className="md:overflow-x-auto">
+        <table className="rtable w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] text-left text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+              {head.map((h, i) => (
+                <th key={i} className="px-3 py-2 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    </TableHeadCtx.Provider>
   );
 }
+
+// Row context so each Cell can look up its own column label for the mobile card.
+const CellIndexCtx = createContext<{ next: () => number } | null>(null);
 
 export function Row({
   children,
@@ -215,27 +305,84 @@ export function Row({
   children: ReactNode;
   onClick?: () => void;
 }) {
+  // A fresh counter per row so cells resolve their column label positionally.
+  let i = 0;
+  const provider = { next: () => i++ };
   return (
-    <tr
-      onClick={onClick}
-      className={
-        "border-b border-[var(--color-border)]/60 " +
-        (onClick ? "cursor-pointer hover:bg-[var(--color-surface-2)]" : "")
-      }
-    >
-      {children}
-    </tr>
+    <CellIndexCtx.Provider value={provider}>
+      <tr
+        onClick={onClick}
+        className={
+          "border-b border-[var(--color-border)]/60 " +
+          (onClick
+            ? "cursor-pointer hover:bg-[var(--color-surface-2)] active:bg-[var(--color-surface-2)]"
+            : "")
+        }
+      >
+        {children}
+      </tr>
+    </CellIndexCtx.Provider>
   );
 }
 
 export function Cell({ children, mono }: { children: ReactNode; mono?: boolean }) {
-  return <td className={"px-3 py-2 align-top " + (mono ? "num" : "")}>{children}</td>;
+  const head = useContext(TableHeadCtx);
+  const idx = useContext(CellIndexCtx);
+  const col = idx ? idx.next() : -1;
+  const label = col >= 0 ? head[col] : undefined;
+  return (
+    <td
+      className={"px-3 py-2 align-top " + (mono ? "num" : "")}
+      data-label={typeof label === "string" ? label : undefined}
+    >
+      {children}
+    </td>
+  );
 }
 
-export function Empty({ label }: { label: string }) {
+export function Empty({ label }: { label: ReactNode }) {
   return (
     <div className="px-3 py-10 text-center text-[13px] text-[var(--color-muted)]">
       {label}
+    </div>
+  );
+}
+
+// RefreshBar — "updated Xs ago" + a manual refresh button that pulses while a
+// refetch is in flight. Pass react-query's dataUpdatedAt + isFetching + refetch.
+export function RefreshBar({
+  updatedAt,
+  isFetching,
+  onRefresh,
+}: {
+  updatedAt: number | undefined;
+  isFetching: boolean;
+  onRefresh: () => void;
+}) {
+  const [, force] = useState(0);
+  // Tick every 5s so "Xs ago" stays live without a data change.
+  useEffect(() => {
+    const t = setInterval(() => force((n) => n + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
+  const ago = updatedAt ? Math.max(0, Math.round((Date.now() - updatedAt) / 1000)) : null;
+  return (
+    <div className="flex items-center gap-2 text-[11px] text-[var(--color-muted)]">
+      <span
+        className="inline-block h-1.5 w-1.5 rounded-full transition-colors"
+        style={{ background: isFetching ? "var(--color-focus)" : "var(--color-border)" }}
+        aria-hidden
+      />
+      <span className="num">
+        {ago === null ? "—" : ago === 0 ? "just now" : `updated ${ago}s ago`}
+      </span>
+      <button
+        onClick={onRefresh}
+        aria-label="refresh now"
+        className="flex h-7 w-7 items-center justify-center rounded-[7px] border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"
+      >
+        <IconRefresh size={13} className={isFetching ? "animate-spin" : ""} />
+      </button>
     </div>
   );
 }

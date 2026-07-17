@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { api } from "../lib/api";
+import { useUrlState } from "../lib/urlstate";
 import {
   Section,
   StatCard,
@@ -8,13 +8,16 @@ import {
   Row,
   Cell,
   Chip,
+  ClassChip,
   Sparkline,
   Select,
   Btn,
   Empty,
+  RefreshBar,
   truncate,
   ageOf,
 } from "../components/primitives";
+import { ViewHeader, TeachingEmpty, Skeleton } from "../components/explain";
 import type { GroundStats, GroundJob } from "../lib/types";
 
 interface Economics {
@@ -111,7 +114,7 @@ function StatsRow() {
             {["P1", "P2", "P3", "P4", "P5"].map((k) => (
               <Row key={k}>
                 <Cell>
-                  <Chip>{k}</Chip>
+                  <ClassChip pclass={k} />
                 </Cell>
                 <Cell mono>{cov[k] ?? 0}</Cell>
                 <Cell mono>
@@ -170,7 +173,7 @@ function VerdictSplit() {
 }
 
 function JobsTab() {
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useUrlState("jobstatus");
   const { data, isLoading } = useQuery({
     queryKey: ["ground_jobs", status],
     queryFn: () =>
@@ -184,9 +187,13 @@ function JobsTab() {
       title="Jobs"
       right={<Select value={status} onChange={setStatus} options={JOB_STATUS_OPTS} />}
     >
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton rows={4} />}
       {data && data.jobs.length === 0 && !isLoading && (
-        <Empty label="no jobs match" />
+        <TeachingEmpty title="No grounding jobs">
+          Grounding jobs are queued when a claim is created or recalled. Each job
+          runs the claim's falsifier against live reality and records a verdict.
+          None match this status filter.
+        </TeachingEmpty>
       )}
       {data && data.jobs.length > 0 && (
         <Table head={["id", "claim", "type", "status", "attempts", "enqueued", "error"]}>
@@ -231,9 +238,13 @@ function AuditTab() {
   });
   return (
     <Section title="Audit queue — drifted claims">
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton rows={3} />}
       {data && data.queue.length === 0 && !isLoading && (
-        <Empty label="queue clear" />
+        <TeachingEmpty title="Queue clear — no drifted claims">
+          The groundskeeper flags claims whose falsifier failed or that aged past
+          their freshness window. Nothing is drifting right now, so every claim's
+          trust is current.
+        </TeachingEmpty>
       )}
       {data && data.queue.length > 0 && (
         <Table head={["claim", "project", "reason", "falsifier", "snippet"]}>
@@ -289,9 +300,12 @@ function ProposalsTab() {
   });
   return (
     <Section title="Resolution proposals — human-gated">
-      {isLoading && <Empty label="loading…" />}
+      {isLoading && <Skeleton rows={3} />}
       {data && data.proposals.length === 0 && !isLoading && (
-        <Empty label="no pending proposals" />
+        <TeachingEmpty title="No pending proposals">
+          When grounding detects a claim has drifted, it can propose a correction
+          for review. An empty list means no automated corrections are waiting.
+        </TeachingEmpty>
       )}
       <div className="space-y-3">
         {data?.proposals.map((p) => (
@@ -338,15 +352,60 @@ function ProposalsTab() {
 }
 
 export default function Grounding() {
+  // When arriving from the Loop's "flagged claims" card (?tab=audit) the drifted
+  // audit queue floats to the top so the operator lands on exactly what they
+  // clicked; otherwise the dashboard reads top-down (throughput first).
+  const [tab] = useUrlState("tab");
+  const auditFirst = tab === "audit";
+  const stats = useQuery({
+    queryKey: ["ground_stats"],
+    queryFn: () => api.get<GroundStats>("/ground/stats"),
+    refetchInterval: 10000,
+  });
   return (
     <div className="space-y-5">
+      <ViewHeader
+        id="grounding"
+        title="Grounding"
+        subtitle="Machine-verifying claims against live reality — the trust engine."
+        right={
+          <RefreshBar
+            updatedAt={stats.dataUpdatedAt}
+            isFetching={stats.isFetching}
+            onRefresh={() => stats.refetch()}
+          />
+        }
+        about={
+          <>
+            Grounding is where trust is earned. Each claim's falsifier is run
+            against the real world and the result sets its <b>verdict</b>:{" "}
+            <b>fresh</b> (just verified), <b>aging</b>, <b>unverified</b>,{" "}
+            <b>revalidating</b>, or <b>stale</b> (failed or aged out). P5 axiomatic
+            claims are terminal and never probed. The stats show throughput and
+            pass rates; the audit queue lists claims that drifted and need
+            re-checking. Trust is how recently a claim was re-verified — not a
+            number that only rises.
+          </>
+        }
+      />
       <StatsRow />
-      <VerdictSplit />
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <JobsTab />
-        <AuditTab />
-      </div>
-      <ProposalsTab />
+      {auditFirst ? (
+        <>
+          <AuditTab />
+          <VerdictSplit />
+          <JobsTab />
+          <ProposalsTab />
+        </>
+      ) : (
+        <>
+          <VerdictSplit />
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <JobsTab />
+            <AuditTab />
+          </div>
+          <ProposalsTab />
+        </>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { api } from "../lib/api";
+import { useUrlState, useUrlNumber } from "../lib/urlstate";
 import {
   Section,
   Table,
@@ -12,10 +13,11 @@ import {
   Input,
   Pager,
   Btn,
-  Empty,
+  RefreshBar,
   truncate,
   ageOf,
 } from "../components/primitives";
+import { ViewHeader, TeachingEmpty, Skeleton } from "../components/explain";
 import type { InsightRow, PrincipleRow } from "../lib/types";
 
 const LIMIT = 50;
@@ -88,6 +90,7 @@ function EntityMiniGraph({ entity, entityType }: { entity: string; entityType: s
 }
 
 function InsightDrawer({ id, onClose }: { id: number; onClose: () => void }) {
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({
     queryKey: ["insight_detail", id],
     queryFn: () => api.get<InsightDetail>(`/query/insights/${id}`),
@@ -103,7 +106,7 @@ function InsightDrawer({ id, onClose }: { id: number; onClose: () => void }) {
   const cs = data?.claims_summary;
   return (
     <Drawer open onClose={onClose} title={<span className="num">insight #{id}</span>}>
-      {isLoading && <div className="text-[var(--color-muted)]">loading…</div>}
+      {isLoading && <Skeleton rows={4} />}
       {i && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -121,11 +124,31 @@ function InsightDrawer({ id, onClose }: { id: number; onClose: () => void }) {
             </div>
           )}
           {cs && (
-            <div className="rounded-[7px] border border-[var(--color-border)] p-2 text-[12px]">
+            <button
+              onClick={() =>
+                navigate({
+                  to: "/claims",
+                  search: (prev: Record<string, string | number | undefined>) => ({
+                    ...prev,
+                    tab: "claims",
+                    q: undefined,
+                    // Land on this insight's project's claims (a filter the
+                    // /claims endpoint natively supports via parent-insight
+                    // project); the operator sees the claim graph this memory
+                    // contributes to.
+                    project: i.project ?? undefined,
+                  }),
+                })
+              }
+              className="w-full rounded-[7px] border border-[var(--color-border)] p-2 text-left text-[12px] transition-colors hover:border-[var(--color-focus)]"
+            >
               <span className="num">
                 claims: {cs.total} total · {cs.fresh} fresh · {cs.stale} stale
               </span>
-            </div>
+              <span className="ml-2 text-[var(--color-muted)]">
+                open in Claims ↗
+              </span>
+            </button>
           )}
           {data?.entities && data.entities.length > 0 && (
             <div>
@@ -171,10 +194,10 @@ function InsightDrawer({ id, onClose }: { id: number; onClose: () => void }) {
 }
 
 function InsightsTab() {
-  const [q, setQ] = useState("");
-  const [offset, setOffset] = useState(0);
-  const [openId, setOpenId] = useState<number | null>(null);
-  const { data, isLoading } = useQuery({
+  const [q, setQ] = useUrlState("q");
+  const [offset, setOffset] = useUrlNumber("offset");
+  const [openId, setOpenId] = useUrlNumber("insight", -1);
+  const query = useQuery({
     queryKey: ["insights", q, offset],
     queryFn: () =>
       api.get<{ rows: InsightRow[]; total: number }>(
@@ -182,13 +205,21 @@ function InsightsTab() {
       ),
     refetchInterval: 20000,
   });
+  const { data, isLoading } = query;
   return (
     <Section
       title="Insights"
       right={
-        data && (
-          <Pager offset={offset} limit={LIMIT} total={data.total} onPage={setOffset} />
-        )
+        <div className="flex items-center gap-3">
+          <RefreshBar
+            updatedAt={query.dataUpdatedAt}
+            isFetching={query.isFetching}
+            onRefresh={() => query.refetch()}
+          />
+          {data && (
+            <Pager offset={offset} limit={LIMIT} total={data.total} onPage={setOffset} />
+          )}
+        </div>
       }
     >
       <div className="mb-3">
@@ -201,8 +232,14 @@ function InsightsTab() {
           placeholder="search insights"
         />
       </div>
-      {isLoading && <Empty label="loading…" />}
-      {data && data.rows.length === 0 && !isLoading && <Empty label="no insights" />}
+      {isLoading && <Skeleton />}
+      {data && data.rows.length === 0 && !isLoading && (
+        <TeachingEmpty title="No insights match">
+          Insights are the engine's raw, confidence-scored memory — accepted
+          proposals from the Review ledger. None match this search. Insights
+          arrive here once captured items are triaged and accepted.
+        </TeachingEmpty>
+      )}
       {data && data.rows.length > 0 && (
         <Table head={["id", "verdict", "type", "project", "conf", "recalls", "content"]}>
           {data.rows.map((r) => (
@@ -220,15 +257,15 @@ function InsightsTab() {
           ))}
         </Table>
       )}
-      {openId !== null && <InsightDrawer id={openId} onClose={() => setOpenId(null)} />}
+      {openId >= 0 && <InsightDrawer id={openId} onClose={() => setOpenId(-1)} />}
     </Section>
   );
 }
 
 function PrinciplesTab() {
-  const [q, setQ] = useState("");
-  const [offset, setOffset] = useState(0);
-  const { data, isLoading } = useQuery({
+  const [q, setQ] = useUrlState("q");
+  const [offset, setOffset] = useUrlNumber("offset");
+  const query = useQuery({
     queryKey: ["principles", q, offset],
     queryFn: () =>
       api.get<{ rows: PrincipleRow[]; total: number }>(
@@ -236,13 +273,21 @@ function PrinciplesTab() {
       ),
     refetchInterval: 30000,
   });
+  const { data, isLoading } = query;
   return (
     <Section
       title="Principles"
       right={
-        data && (
-          <Pager offset={offset} limit={LIMIT} total={data.total} onPage={setOffset} />
-        )
+        <div className="flex items-center gap-3">
+          <RefreshBar
+            updatedAt={query.dataUpdatedAt}
+            isFetching={query.isFetching}
+            onRefresh={() => query.refetch()}
+          />
+          {data && (
+            <Pager offset={offset} limit={LIMIT} total={data.total} onPage={setOffset} />
+          )}
+        </div>
       }
     >
       <div className="mb-3">
@@ -255,8 +300,15 @@ function PrinciplesTab() {
           placeholder="search principles"
         />
       </div>
-      {isLoading && <Empty label="loading…" />}
-      {data && data.rows.length === 0 && !isLoading && <Empty label="no principles" />}
+      {isLoading && <Skeleton />}
+      {data && data.rows.length === 0 && !isLoading && (
+        <TeachingEmpty title="No principles match">
+          Principles are the highest-trust layer — verified recurring patterns
+          promoted from insights. When all of a principle's core claims stay
+          fresh, crag distills it into an enforced governance rule. None match
+          this search.
+        </TeachingEmpty>
+      )}
       {data && data.rows.length > 0 && (
         <Table head={["id", "verdict", "project", "conf", "content"]}>
           {data.rows.map((r) => (
@@ -313,9 +365,25 @@ function InsightContraBadge() {
 }
 
 export default function Corpus() {
-  const [tab, setTab] = useState<"insights" | "principles">("insights");
+  const [tab, setTab] = useUrlState("tab", "insights");
   return (
     <div className="space-y-4">
+      <ViewHeader
+        id="corpus"
+        title="Corpus"
+        subtitle="The memory itself — raw insights and the principles distilled from them."
+        about={
+          <>
+            The corpus is what the engine remembers. <b>Insights</b> are raw,
+            confidence-scored memory accepted from the Review ledger. Verified,
+            recurring insights are promoted to <b>principles</b> — the highest-trust
+            layer, each with its own confidence lifecycle. Principles whose core
+            claims all stay fresh become compile-eligible and crag distills them
+            into enforced governance. Open any insight to see its claims and jump
+            into the claim graph.
+          </>
+        }
+      />
       <div className="flex items-center gap-2">
         <Btn tone={tab === "insights" ? "brand" : "default"} onClick={() => setTab("insights")}>
           Insights

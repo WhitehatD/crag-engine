@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Section, StatCard, Chip, ageOf } from "../components/primitives";
+import {
+  Section,
+  StatCard,
+  Chip,
+  Sparkline,
+  RefreshBar,
+  ageOf,
+} from "../components/primitives";
+import { ViewHeader, TeachingEmpty, Defined } from "../components/explain";
 import type {
   Stats,
   GroundStats,
@@ -19,15 +27,13 @@ function useStats() {
 
 // The flywheel, live: capture staged -> dispositions pending -> claims by verdict
 // -> compile-eligible principles -> distilled rules adopted. Each stage links to
-// its view.
+// its view with a filter preset so a click lands on exactly what the card counts.
 function Pipeline() {
   const ground = useQuery({
     queryKey: ["ground_stats"],
     queryFn: () => api.get<GroundStats>("/ground/stats"),
     refetchInterval: 10000,
   });
-  // NOTE: `count` reflects the returned page, not the queue total — fetch with
-  // the max limit so the pending number is the real ledger depth.
   const dispo = useQuery({
     queryKey: ["dispo_all"],
     queryFn: () =>
@@ -62,7 +68,8 @@ function Pipeline() {
               .join("  ") || "none"}
           </span>
         }
-        href="/console/review"
+        to="/review"
+        hint="Captured items awaiting triage. Click to open the proposal ledger."
       />
       <StatCard
         label="Claims (classified)"
@@ -72,7 +79,8 @@ function Pipeline() {
             P1 {cov.P1 ?? 0} · P4 {cov.P4 ?? 0} · P5 {cov.P5 ?? 0}
           </span>
         }
-        href="/console/claims"
+        to="/claims"
+        hint="Atomic claims decomposed from insights. Click to browse them."
       />
       <StatCard
         label="Grounded 24h"
@@ -82,8 +90,9 @@ function Pipeline() {
             pass {verdicts.pass ?? 0} · fail {verdicts.fail ?? 0}
           </span>
         }
-        href="/console/grounding"
+        to="/grounding"
         tone="brand"
+        hint="Grounding runs completed in the last 24h. Click for the grounding dashboard."
       />
       <StatCard
         label="Flagged claims"
@@ -92,15 +101,19 @@ function Pipeline() {
           (ground.data?.flagged_claims?.principles ?? 0)
         }
         sub="drifted, awaiting resolution"
-        href="/console/grounding"
+        to="/grounding"
+        search={{ tab: "audit" }}
         tone="warn"
+        hint="Claims whose falsifier failed or that aged out. Click to open the audit queue."
       />
       <StatCard
         label="Compile-eligible principles"
         value={(principles.data?.principles?.length ?? 0).toLocaleString()}
         sub="roll up fresh"
-        href="/console/corpus"
+        to="/corpus"
+        search={{ tab: "principles" }}
         tone="brand"
+        hint="Principles whose core claims are all fresh — these distill into governance."
       />
     </div>
   );
@@ -112,13 +125,22 @@ function HealthStrip() {
     queryFn: () => api.get<HealthCheck>("/fail_mode_check"),
     refetchInterval: 15000,
   });
-  if (!data) return null;
+  if (!data)
+    return (
+      <div className="text-[12px] text-[var(--color-muted)]">checking…</div>
+    );
   return (
     <div className="flex flex-wrap gap-2">
       {data.checks.map((c) => {
         const ok = c.status === "ok";
         const na = c.status === "not_applicable";
-        const fg = ok ? "#22c55e" : na ? "#a1a1aa" : c.severity === "critical" ? "#ef4444" : "#f59e0b";
+        const fg = ok
+          ? "#22c55e"
+          : na
+            ? "#a1a1aa"
+            : c.severity === "critical"
+              ? "#ef4444"
+              : "#f59e0b";
         return (
           <Chip key={c.class} fg={fg} title={c.detail}>
             {c.class}: {c.status}
@@ -130,9 +152,6 @@ function HealthStrip() {
 }
 
 function EventRail() {
-  // Journal events: {type, ts, id?, project?, preview?}. Poll the full ring
-  // (bounded server-side) and render newest first — the rail is a live feed,
-  // populated as saves/arena/supersede/session events occur.
   const { data } = useQuery({
     queryKey: ["events_since"],
     queryFn: () =>
@@ -140,13 +159,34 @@ function EventRail() {
     refetchInterval: 8000,
   });
   const events = (data?.events ?? []).slice(-30).reverse();
+
+  // Cheap 24h activity sparkline — bucket event timestamps into hourly counts.
+  const buckets = new Array(24).fill(0);
+  const now = Date.now();
+  for (const e of data?.events ?? []) {
+    const ts = e.ts ? Date.parse(String(e.ts)) : NaN;
+    if (!Number.isNaN(ts)) {
+      const hoursAgo = Math.floor((now - ts) / 3_600_000);
+      if (hoursAgo >= 0 && hoursAgo < 24) buckets[23 - hoursAgo] += 1;
+    }
+  }
+  const hasActivity = buckets.some((b) => b > 0);
+
   return (
-    <Section title="Live events">
+    <Section
+      title="Live events"
+      right={
+        hasActivity ? (
+          <Sparkline values={buckets} color="#22d3ee" width={120} height={24} />
+        ) : undefined
+      }
+    >
       {events.length === 0 ? (
-        <div className="text-[12px] text-[var(--color-muted)]">
-          No events yet — the rail fills as the loop runs (saves, arena verdicts,
-          supersedes, session ends).
-        </div>
+        <TeachingEmpty title="No events yet">
+          This rail is the engine's live journal. It fills as the loop runs —
+          insights saved, arena verdicts, supersedes, and session ends all appear
+          here newest-first.
+        </TeachingEmpty>
       ) : (
         <ul className="space-y-1.5">
           {events.map((e, i) => (
@@ -154,7 +194,9 @@ function EventRail() {
               <span className="num shrink-0 text-[var(--color-muted)]">
                 {ageOf((e.ts as string) ?? null)}
               </span>
-              <Chip>{(e.type as string) ?? "event"}</Chip>
+              <Defined token={(e.type as string) ?? ""}>
+                <Chip>{(e.type as string) ?? "event"}</Chip>
+              </Defined>
               <span className="text-[var(--color-text)]">
                 {(e.preview as string) ??
                   (e.summary as string) ??
@@ -173,6 +215,30 @@ export default function Loop() {
   const stats = useStats();
   return (
     <div className="space-y-5">
+      <ViewHeader
+        id="loop"
+        title="Loop"
+        subtitle="The closed loop, live — every stage from capture to distilled governance."
+        right={
+          <RefreshBar
+            updatedAt={stats.dataUpdatedAt}
+            isFetching={stats.isFetching}
+            onRefresh={() => stats.refetch()}
+          />
+        }
+        about={
+          <>
+            This is the engine's flywheel at a glance. Failures and lessons are{" "}
+            <b>captured</b>, <b>triaged</b> into tiers, become <b>insights</b>,
+            decompose into <b>claims</b>, get <b>grounded</b> against reality, and
+            the verified patterns become <b>principles</b> that crag <b>distills</b>{" "}
+            into enforced rules. Each stat card below counts one stage and clicks
+            through to the view that owns it. The rail on the left is the live
+            journal; the strip on the right is the engine's self-check.
+          </>
+        }
+      />
+
       <div className="grid grid-cols-3 gap-3">
         <StatCard
           label="Active insights"
