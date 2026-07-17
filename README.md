@@ -113,6 +113,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE). Everything outside `ee/` is and will
-remain Apache-2.0. The `ee/` directory is reserved for future enterprise
-features under a commercial license — see [ee/README.md](ee/README.md).
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). **Every line of
+source in this repository is Apache-2.0** — no carve-outs, no dual licensing,
+no contributor surprises. Commercial capabilities (hosted console, team memory
+server, SSO/RBAC, audit export) are delivered as separate distributions built
+on this engine — see [crag.sh](https://crag.sh).

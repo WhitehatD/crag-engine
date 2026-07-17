@@ -1,6 +1,3 @@
-# Packaging boundary: the pip artifact is Apache-2.0 ONLY. ee/ (commercial
-# license) must never ship in an sdist or wheel — it is source-available in
-# the repository exclusively. Wheels already exclude it structurally
-# (packages = ["crag_engine"]); this makes the sdist boundary explicit.
-prune ee
+# The pip artifact ships the Apache-2.0 engine package plus its legal files.
 include NOTICE
+include LICENSE
