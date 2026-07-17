@@ -150,13 +150,13 @@ function InsightDrawer({ id, onClose }: { id: number; onClose: () => void }) {
               </span>
             </button>
           )}
-          {data?.entities && data.entities.length > 0 && (
+          {data?.entities && (data.entities?.length ?? 0) > 0 && (
             <div>
               <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
                 entity graph
               </div>
               <div className="mb-2 flex flex-wrap gap-1.5">
-                {data.entities.map((e, k) => (
+                {(data.entities ?? []).map((e, k) => (
                   <Chip key={k} title={e.entity_type}>
                     {e.entity}
                   </Chip>
@@ -246,7 +246,7 @@ function InsightsTab() {
             <Row key={r.id} onClick={() => setOpenId(r.id)}>
               <Cell mono>{r.id}</Cell>
               <Cell>
-                <VerdictChip verdict={r.liveness.verdict} />
+                <VerdictChip verdict={r.liveness?.verdict} />
               </Cell>
               <Cell>{r.type}</Cell>
               <Cell>{r.project ?? "—"}</Cell>
@@ -315,7 +315,7 @@ function PrinciplesTab() {
             <Row key={r.id}>
               <Cell mono>{r.id}</Cell>
               <Cell>
-                <VerdictChip verdict={r.liveness.verdict} />
+                <VerdictChip verdict={r.liveness?.verdict} />
               </Cell>
               <Cell>{r.project ?? "—"}</Cell>
               <Cell mono>{r.confidence.toFixed(2)}</Cell>

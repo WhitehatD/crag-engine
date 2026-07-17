@@ -149,12 +149,15 @@ export function Chip({
   );
 }
 
-export function VerdictChip({ verdict }: { verdict: Verdict | string }) {
-  const t = VERDICT_TONE[verdict] ?? VERDICT_TONE.unverified;
+export function VerdictChip({ verdict }: { verdict?: Verdict | string | null }) {
+  // Rows without a liveness stamp (e.g. never-grounded insights) arrive with
+  // no verdict — render "unverified" rather than crash.
+  const v = verdict || "unverified";
+  const t = VERDICT_TONE[v] ?? VERDICT_TONE.unverified;
   return (
-    <Defined token={String(verdict)}>
+    <Defined token={String(v)}>
       <Chip fg={t.fg} bg={t.bg}>
-        {verdict}
+        {v}
       </Chip>
     </Defined>
   );

@@ -94,13 +94,13 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
             </div>
           )}
 
-          {data.entities.length > 0 && (
+          {(data.entities?.length ?? 0) > 0 && (
             <div>
               <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
                 entities
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {data.entities.map((e, i) => (
+                {(data.entities ?? []).map((e, i) => (
                   <Chip key={i} title={e.entity_type}>
                     {e.entity}
                     <span className="ml-1 text-[var(--color-muted)]">
@@ -116,14 +116,14 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
             <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
               parents — the memory this claim was decomposed from
             </div>
-            {data.parents.insights.length === 0 &&
-            data.parents.principles.length === 0 ? (
+            {(data.parents?.insights?.length ?? 0) === 0 &&
+            (data.parents?.principles?.length ?? 0) === 0 ? (
               <div className="text-[12px] text-[var(--color-muted)]">
                 orphan claim — no parent insight or principle
               </div>
             ) : (
               <ul className="space-y-1.5">
-                {data.parents.insights.map((p) => (
+                {(data.parents?.insights ?? []).map((p) => (
                   <li key={`i${p.id}`} className="text-[12px]">
                     <button onClick={() => openParent("insights", p.id)}>
                       <Chip>insight #{p.id} ↗</Chip>
@@ -132,7 +132,7 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
                     {truncate(p.preview ?? "", 100)}
                   </li>
                 ))}
-                {data.parents.principles.map((p) => (
+                {(data.parents?.principles ?? []).map((p) => (
                   <li key={`p${p.id}`} className="text-[12px]">
                     <button onClick={() => openParent("principles", p.id)}>
                       <Chip fg="#22d3ee">principle #{p.id} ↗</Chip>
@@ -149,13 +149,13 @@ function ClaimDrawer({ id, onClose }: { id: number; onClose: () => void }) {
             <div className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
               grounding history — every time this claim was checked against reality
             </div>
-            {data.grounding_history.length === 0 ? (
+            {(data.grounding_history?.length ?? 0) === 0 ? (
               <div className="text-[12px] text-[var(--color-muted)]">
                 no grounding runs yet — this claim is unverified
               </div>
             ) : (
               <ul className="space-y-2">
-                {data.grounding_history.map((h, i) => (
+                {(data.grounding_history ?? []).map((h, i) => (
                   <li
                     key={i}
                     className="rounded-[7px] border border-[var(--color-border)] p-2 text-[12px]"
