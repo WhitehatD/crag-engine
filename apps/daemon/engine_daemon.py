@@ -2102,6 +2102,129 @@ except (ImportError, NameError) as _sl_err:  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
+# Overlay module discovery — the dependency-inversion seam (docs/architecture.md
+# §10). A private/superset overlay (e.g. the ops Infra module) self-registers
+# with ZERO engine edits: it is a module object implementing an optional
+# `bind(...)` (DB accessors + aggregates injected), an optional
+# `register(aggregates)` (idempotent CORE_MODULES append → /console/modules), and
+# an optional `router` (an APIRouter mounted here). This is exactly the shape the
+# core `aggregates`/`session_lifecycle` modules already use, so no new contract
+# is invented — an overlay adopts it as-is.
+#
+# Two discovery channels, unioned (an overlay may appear in both; loaded once):
+#   1. Entry-point group `crag_anchor.modules` — for pip-installed overlays.
+#   2. Env var CRAG_ANCHOR_MODULES — comma-separated importable module names, so
+#      a dev/checkout overlay works WITHOUT the overlay pip-installing itself
+#      (entry points require an installed distribution).
+#
+# PER-MODULE fail-soft: one broken module logs a single ERROR line naming the
+# module + exception and is SKIPPED; the daemon still boots. No overlays => zero
+# behavior change (the manifest returns the core modules only).
+# ---------------------------------------------------------------------------
+_OVERLAY_ENTRY_POINT_GROUP = "crag_anchor.modules"
+_loaded_overlay_modules: list[str] = []
+
+
+def _discover_overlay_specs() -> list[tuple[str, Any]]:
+    """Return an ordered, de-duplicated list of (name, loader) pairs to mount.
+
+    `loader` is a zero-arg callable returning the module object; resolving it is
+    deferred so a broken entry-point load is caught per-module in the caller.
+    Discovery itself is fail-soft: a failure enumerating either channel logs a
+    warning and yields an empty list for that channel, never raising.
+    """
+    specs: list[tuple[str, Any]] = []
+    seen: set[str] = set()
+
+    # Channel 1 — entry points (installed distributions).
+    try:
+        from importlib.metadata import entry_points
+
+        try:
+            eps = entry_points(group=_OVERLAY_ENTRY_POINT_GROUP)  # py3.10+
+        except TypeError:  # pragma: no cover — very old importlib.metadata
+            eps = entry_points().get(_OVERLAY_ENTRY_POINT_GROUP, [])
+        for ep in eps:
+            name = f"entrypoint:{ep.name}"
+            if name in seen:
+                continue
+            seen.add(name)
+            specs.append((name, ep.load))
+    except Exception as _ep_err:  # pragma: no cover — enumeration is best-effort
+        logger.warning("overlay entry-point discovery failed (ignored): %s", _ep_err)
+
+    # Channel 2 — env-var importable module names (dev/checkout overlays).
+    import importlib
+
+    raw = os.environ.get("CRAG_ANCHOR_MODULES", "") or ""
+    for mod_name in (m.strip() for m in raw.split(",")):
+        if not mod_name:
+            continue
+        name = f"env:{mod_name}"
+        if name in seen:
+            continue
+        seen.add(name)
+        specs.append((name, (lambda m=mod_name: importlib.import_module(m))))
+
+    return specs
+
+
+def _load_overlay_modules() -> None:
+    """Resolve, bind, register, and mount each discovered overlay. Per-module
+    fail-soft — a broken module never stops the daemon or its siblings."""
+    for name, loader in _discover_overlay_specs():
+        try:
+            mod = loader()
+
+            # Optional dependency injection. We introspect the accepted kwargs so
+            # an overlay declares only what it needs (ops_infra takes get_db +
+            # table_exists; a claim-aware overlay could also take aggregates).
+            bind = getattr(mod, "bind", None)
+            if callable(bind):
+                import inspect
+
+                available = {
+                    "get_db": get_db,
+                    "table_exists": _table_exists,
+                    "aggregates": _aggregates if "_aggregates" in globals() else None,
+                    "claim_layer": (_claim_layer if _CLAIM_LAYER else None),
+                }
+                try:
+                    params = inspect.signature(bind).parameters
+                    accepts_var_kw = any(
+                        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+                    )
+                    kwargs = (
+                        available
+                        if accepts_var_kw
+                        else {k: v for k, v in available.items() if k in params}
+                    )
+                except (TypeError, ValueError):  # builtins / unintrospectable
+                    kwargs = available
+                bind(**kwargs)
+
+            # Optional manifest registration — append to aggregates.CORE_MODULES
+            # so the overlay's module appears in GET /console/modules, exactly as
+            # the core does. Idempotent by the overlay's own register().
+            register = getattr(mod, "register", None)
+            if callable(register) and "_aggregates" in globals():
+                register(_aggregates)
+
+            # Optional router — mount the overlay's routes.
+            overlay_router = getattr(mod, "router", None)
+            if overlay_router is not None:
+                app.include_router(overlay_router)
+
+            _loaded_overlay_modules.append(name)
+            logger.info("overlay module loaded: %s", name)
+        except Exception as _ov_err:  # noqa: BLE001 — one bad overlay is skipped
+            logger.error("overlay module '%s' failed to load — SKIPPED: %r", name, _ov_err)
+
+
+_load_overlay_modules()
+
+
+# ---------------------------------------------------------------------------
 # Event journal — append-only ring buffer of state-change events.
 #
 # Publish: `await _sse_publish(event_type, payload_dict)` appends to the

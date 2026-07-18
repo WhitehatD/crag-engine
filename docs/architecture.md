@@ -181,7 +181,44 @@ Fail-open: any client error returns `None` and the caller degrades gracefully.
   that changed the approach, repeated errors already covered by a saved
   insight, novel saves).
 
-## 9. Testing
+## 9. Overlay modules (`crag_anchor.modules`)
+
+A private or superset deployment can extend the daemon with extra routes and
+console modules WITHOUT forking or editing the engine. The public daemon
+discovers overlay modules at startup (after the core routes mount) and mounts
+each one fail-soft. This is the dependency-inversion seam: the private
+`crag-engine-ops` repo pip-installs `crag-anchor` and ships its `ops_infra`
+overlay instead of maintaining a daemon fork.
+
+**Two discovery channels** (unioned; an overlay listed in both loads once):
+
+| Channel | Source | Use |
+|---|---|---|
+| Entry points | group `crag_anchor.modules` in the overlay's `pyproject.toml` | pip-installed overlays |
+| Env var | `CRAG_ANCHOR_MODULES` — comma-separated importable module names | dev/checkout overlays that are not pip-installed themselves |
+
+**Module protocol** (all parts optional — match what your overlay needs; this is
+the same shape the core `aggregates`/`session_lifecycle` modules already use, so
+no new contract is invented):
+
+- `bind(**kwargs)` — dependency injection, called once at load. The daemon
+  passes, by keyword, whichever of `get_db`, `table_exists`, `aggregates`,
+  `claim_layer` your signature declares (introspected; a `**kwargs` signature
+  receives all of them). Omit `bind` entirely if you need no daemon internals.
+- `register(aggregates)` — called with the `aggregates` module so the overlay
+  can idempotently append its module dict to `aggregates.CORE_MODULES`, which is
+  what `GET /console/modules` returns. This is how an overlay's nav module shows
+  up in the console manifest alongside the core modules.
+- `router` — an `APIRouter`; if present it is mounted via
+  `app.include_router(router)`, adding the overlay's HTTP routes.
+
+**Fail-soft contract:** discovery is per-module isolated. A module that raises
+during load logs a single `ERROR` line (`overlay module '<name>' failed to load
+— SKIPPED: <exc>`) and is skipped; the daemon still boots and sibling overlays
+are unaffected. With no overlays present the behavior is byte-for-byte the core
+engine (the manifest returns only the core modules).
+
+## 10. Testing
 
 Test suites are standalone scripts (no pytest dependency): each file under
 `apps/daemon/tests/`, `apps/mcp/tests/`, `db/tests/` builds a temp DB from the
