@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-crag-engine MCP Server -- verified cross-session memory for Claude Code / Cursor
+crag-anchor MCP Server -- verified cross-session memory for Claude Code / Cursor
 
 Exposes tools via stdio MCP protocol (consolidated surface, 24 tools after the
 2026-07-18 tool-surface trim — 8 ops/telemetry/disposition tools demoted to
@@ -13,10 +13,10 @@ HTTP/CLI/console; their daemon endpoints remain):
   absorbed:  promote_insight (1 id = promote, N ids + content = distill)
 
 Architecture:
-  - Thin HTTP client of the crag engine daemon at 127.0.0.1:8786. Every tool is a
+  - Thin HTTP client of the crag Anchor daemon at 127.0.0.1:8786. Every tool is a
     daemon call. There is NO direct-SQLite fallback: if the daemon is down the
     tool returns a LOUD structured error rather than forking state into a second
-    database. Restart the daemon (`crag-engine`) and retry.
+    database. Restart the daemon (`crag-anchor`) and retry.
   - Logs to stderr only -- stdout reserved for MCP protocol.
 
 Run:
@@ -52,14 +52,14 @@ def _validate_topk(topk) -> int:
 
 # WS-P (2026-07-17): the daemon URL resolves through the shared accessor
 # db/engine_paths.py so the MCP client and daemon agree on the
-# bind. Order: env (CRAG_ENGINE_DAEMON_URL, or CRAG_ENGINE_DAEMON_HOST/PORT) → stack.toml →
+# bind. Order: env (CRAG_ANCHOR_DAEMON_URL, or CRAG_ANCHOR_DAEMON_HOST/PORT) → stack.toml →
 # 127.0.0.1:8786. With zero config this is exactly the historical value.
 # engine_paths lives in db/ (sibling of apps/); add it to sys.path.
 _MCP_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(_MCP_REPO_ROOT, "db"))
 _DAEMON_URL_DEFAULT = "http://127.0.0.1:8786"
-if os.environ.get("CRAG_ENGINE_DAEMON_URL"):
-    DAEMON_URL = os.environ["CRAG_ENGINE_DAEMON_URL"]
+if os.environ.get("CRAG_ANCHOR_DAEMON_URL"):
+    DAEMON_URL = os.environ["CRAG_ANCHOR_DAEMON_URL"]
 else:
     try:
         from engine_paths import get_paths as _get_engine_paths
@@ -80,12 +80,12 @@ DAEMON_WRITE_TIMEOUT_READ = 60.0  # seconds
 # NO direct-SQLite fallback: forking state into a second database is worse than
 # failing loudly. Restart the daemon and retry.
 _DAEMON_DOWN_ERROR = (
-    f"crag engine daemon unreachable at {DAEMON_URL} — start it with `crag-engine`"
+    f"crag Anchor daemon unreachable at {DAEMON_URL} — start it with `crag-anchor`"
 )
 
 
 async def _daemon_request(method: str, path: str, json_body: dict = None) -> dict:
-    """HTTP call to the crag engine daemon.
+    """HTTP call to the crag Anchor daemon.
 
     On any transport failure (daemon down, httpx missing, timeout) returns a
     LOUD structured error — never a silent fallback. On an HTTP >=400 the
@@ -98,7 +98,7 @@ async def _daemon_request(method: str, path: str, json_body: dict = None) -> dic
     try:
         import httpx
     except ImportError:
-        return {"ok": False, "error": "httpx not installed — MCP server cannot reach crag engine daemon"}
+        return {"ok": False, "error": "httpx not installed — MCP server cannot reach crag Anchor daemon"}
     if method == "GET":
         _timeout = DAEMON_TIMEOUT
     else:
@@ -114,7 +114,7 @@ async def _daemon_request(method: str, path: str, json_body: dict = None) -> dic
                 return {"ok": False, "error": r.text, "http_status": r.status_code}
             return r.json()
     except Exception as e:
-        print(f"[crag-engine-mcp] daemon unreachable: {e}", file=sys.stderr)
+        print(f"[crag-anchor-mcp] daemon unreachable: {e}", file=sys.stderr)
         return {"ok": False, "error": _DAEMON_DOWN_ERROR, "detail": str(e)}
 
 
@@ -538,7 +538,7 @@ async def _consume_broadcasts():
     try:
         import httpx
     except ImportError:
-        print("[crag-engine-mcp] httpx not installed -- broadcast subscriber disabled", file=sys.stderr)
+        print("[crag-anchor-mcp] httpx not installed -- broadcast subscriber disabled", file=sys.stderr)
         return
 
     url = f"{DAEMON_URL}/subscribe"
@@ -553,7 +553,7 @@ async def _consume_broadcasts():
             async with httpx.AsyncClient(timeout=stream_timeout) as client:
                 async with client.stream("GET", url) as r:
                     if r.status_code != 200:
-                        print(f"[crag-engine-mcp] subscribe got HTTP {r.status_code}, backing off", file=sys.stderr)
+                        print(f"[crag-anchor-mcp] subscribe got HTTP {r.status_code}, backing off", file=sys.stderr)
                         await asyncio.sleep(backoff)
                         backoff = min(backoff * 2, 30.0)
                         continue
@@ -582,7 +582,7 @@ async def _consume_broadcasts():
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            print(f"[crag-engine-mcp] subscribe stream failed: {exc}; reconnecting in {backoff:.1f}s", file=sys.stderr)
+            print(f"[crag-anchor-mcp] subscribe stream failed: {exc}; reconnecting in {backoff:.1f}s", file=sys.stderr)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 30.0)
 
@@ -602,7 +602,7 @@ try:
 except ImportError:
     _HAS_RESOURCE = False
 
-app = Server("crag-engine")
+app = Server("crag-anchor")
 
 _KIND_PROP = {"type": "string", "enum": ["insight", "principle"],
               "description": "Row type: insight (raw memory) or principle (distilled high-trust)"}
@@ -1280,7 +1280,7 @@ if _HAS_RESOURCE:
                 uri="engine://guide",
                 name="engine_guide",
                 description=(
-                    "Structured JSON guide to all crag-engine MCP tools, HTTP endpoints, and key workflows. "
+                    "Structured JSON guide to all crag-anchor MCP tools, HTTP endpoints, and key workflows. "
                     "Fetched live from the daemon's /guide endpoint."
                 ),
                 mimeType="application/json",
@@ -1301,7 +1301,7 @@ async def main():
     try:
         asyncio.create_task(_consume_broadcasts())
     except Exception as exc:
-        print(f"[crag-engine-mcp] broadcast subscriber failed to start: {exc}", file=sys.stderr)
+        print(f"[crag-anchor-mcp] broadcast subscriber failed to start: {exc}", file=sys.stderr)
     async with stdio_server() as (read_stream, write_stream):
         await app.run(read_stream, write_stream, app.create_initialization_options())
 

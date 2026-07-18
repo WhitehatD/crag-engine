@@ -25,7 +25,7 @@ if str(_DB_DIR) not in sys.path:
 
 import engine_paths  # noqa: E402
 
-_STACK_TOML = Path(os.environ.get("CRAG_ENGINE_STACK_TOML", str(_DB_DIR / "stack.toml")))
+_STACK_TOML = Path(os.environ.get("CRAG_ANCHOR_STACK_TOML", str(_DB_DIR / "stack.toml")))
 
 
 def _bool(v) -> bool:
@@ -89,43 +89,43 @@ def _build_config() -> CaptureConfig:
     paths = engine_paths.get_paths()
 
     transcript_glob = _resolve(
-        "CRAG_ENGINE_CAPTURE_TRANSCRIPT_GLOB", cap.get("transcript_glob"), _DEFAULT_TRANSCRIPT_GLOB
+        "CRAG_ANCHOR_CAPTURE_TRANSCRIPT_GLOB", cap.get("transcript_glob"), _DEFAULT_TRANSCRIPT_GLOB
     )
     default_watermark = str(paths.home / "db" / "capture-state.db")
     watermark_store = _resolve(
-        "CRAG_ENGINE_CAPTURE_WATERMARK_STORE", cap.get("watermark_store"), default_watermark
+        "CRAG_ANCHOR_CAPTURE_WATERMARK_STORE", cap.get("watermark_store"), default_watermark
     )
-    daemon_url = _resolve("CRAG_ENGINE_CAPTURE_DAEMON_URL", cap.get("daemon_url"), paths.daemon_url)
+    daemon_url = _resolve("CRAG_ANCHOR_CAPTURE_DAEMON_URL", cap.get("daemon_url"), paths.daemon_url)
 
-    max_spans = _resolve("CRAG_ENGINE_CAPTURE_MAX_SPANS_PER_POLL", cap.get("max_spans_per_poll"), "50")
+    max_spans = _resolve("CRAG_ANCHOR_CAPTURE_MAX_SPANS_PER_POLL", cap.get("max_spans_per_poll"), "50")
     max_cand = _resolve(
-        "CRAG_ENGINE_CAPTURE_MAX_CANDIDATES_PER_SESSION_RUN",
+        "CRAG_ANCHOR_CAPTURE_MAX_CANDIDATES_PER_SESSION_RUN",
         cap.get("max_candidates_per_session_run"), "20",
     )
-    dedup_sim = _resolve("CRAG_ENGINE_CAPTURE_DEDUP_SIMILARITY", cap.get("dedup_similarity"), "0.92")
+    dedup_sim = _resolve("CRAG_ANCHOR_CAPTURE_DEDUP_SIMILARITY", cap.get("dedup_similarity"), "0.92")
     extract_fallback = _resolve(
-        "CRAG_ENGINE_CAPTURE_EXTRACT_MODEL_FALLBACK",
+        "CRAG_ANCHOR_CAPTURE_EXTRACT_MODEL_FALLBACK",
         cap.get("extract_model_fallback"), "claude-haiku-4-5-20251001",
     )
     # REV 6/8: in-process daemon capture task. Default ENABLED — "the loop
     # runs around the agent" is the whole point; an operator can opt out with
-    # daemon_task_enabled=false or CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED=0.
+    # daemon_task_enabled=false or CRAG_ANCHOR_CAPTURE_DAEMON_TASK_ENABLED=0.
     daemon_task_enabled = _resolve(
-        "CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED", cap.get("daemon_task_enabled"), "true"
+        "CRAG_ANCHOR_CAPTURE_DAEMON_TASK_ENABLED", cap.get("daemon_task_enabled"), "true"
     )
     daemon_task_interval = _resolve(
-        "CRAG_ENGINE_CAPTURE_DAEMON_TASK_INTERVAL_SEC", cap.get("daemon_task_interval_sec"), "120"
+        "CRAG_ANCHOR_CAPTURE_DAEMON_TASK_INTERVAL_SEC", cap.get("daemon_task_interval_sec"), "120"
     )
     # rev-9 §9.2: shared secret for POST /capture/event. Env wins; "" = fail-open
     # (loopback-only, one-time unauthenticated warning) to preserve the current
     # single-user local deployment.
-    event_token = _resolve("CRAG_ENGINE_CAPTURE_TOKEN", cap.get("event_token"), "")
+    event_token = _resolve("CRAG_ANCHOR_CAPTURE_TOKEN", cap.get("event_token"), "")
     # rev-9 §9.2: alternatively, the token can live in a gitignored FILE (path
     # given here). The file's contents (whitespace-stripped) take precedence
     # over an inline event_token when the file exists and is non-empty — a
     # secret-in-a-file is the recommended production posture (never committed,
     # rotatable on disk without editing stack.toml).
-    auth_token_file = _resolve("CRAG_ENGINE_CAPTURE_AUTH_TOKEN_FILE", cap.get("auth_token_file"), "")
+    auth_token_file = _resolve("CRAG_ANCHOR_CAPTURE_AUTH_TOKEN_FILE", cap.get("auth_token_file"), "")
 
     try:
         max_spans_i = int(max_spans)

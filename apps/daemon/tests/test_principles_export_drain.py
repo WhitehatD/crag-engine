@@ -119,7 +119,7 @@ def _load_daemon():
 
 
 TEMP_DB = _build_temp_db()
-os.environ["CRAG_ENGINE_ALLOW_SYNC_PATH"] = "1"  # temp dirs can look sync-ish on CI boxes
+os.environ["CRAG_ANCHOR_ALLOW_SYNC_PATH"] = "1"  # temp dirs can look sync-ish on CI boxes
 daemon = _load_daemon()
 daemon.DB_PATH = Path(TEMP_DB)
 
@@ -246,24 +246,24 @@ def run_T_EXPORT_CRAG_GATE():
 
 def run_T_DRAIN_CONFIG():
     print("\n[T_DRAIN_CONFIG]")
-    for k in ("CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED", "CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC"):
+    for k in ("CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED", "CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC"):
         os.environ.pop(k, None)
     en, iv = daemon._drain_sweep_config()
     check("T_DC_default", en is True and iv == 3600.0, f"({en},{iv})")
 
-    os.environ["CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED"] = "0"
+    os.environ["CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED"] = "0"
     en, _ = daemon._drain_sweep_config()
     check("T_DC_disable", en is False, f"enabled={en}")
-    os.environ.pop("CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED")
+    os.environ.pop("CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED")
 
-    os.environ["CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC"] = "5"
+    os.environ["CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC"] = "5"
     _, iv = daemon._drain_sweep_config()
     check("T_DC_min_clamp", iv == 60.0, f"interval={iv} (must clamp to 60)")
 
-    os.environ["CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC"] = "not-a-number"
+    os.environ["CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC"] = "not-a-number"
     _, iv = daemon._drain_sweep_config()
     check("T_DC_bad_value_fallback", iv == 3600.0, f"interval={iv}")
-    os.environ.pop("CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC")
+    os.environ.pop("CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC")
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,11 @@
-# Contributing to crag-engine
+# Contributing to crag Anchor
 
 Thanks for your interest. The project is in alpha; expect churn.
 
 ## Setup
 
 ```bash
-git clone <repo> crag-engine && cd crag-engine
+git clone <repo> crag-anchor && cd crag-anchor
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e '.[all]'
 pip install ruff

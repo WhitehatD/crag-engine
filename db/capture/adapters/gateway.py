@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("crag-engine-capture")
+logger = logging.getLogger("crag-anchor-capture")
 
 NAME = "gateway"
 

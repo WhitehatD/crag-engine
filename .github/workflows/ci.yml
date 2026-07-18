@@ -33,7 +33,7 @@ jobs:
       - name: Install package (all extras)
         run: pip install -e '.[all]'
       - name: Byte-compile everything
-        run: python -m compileall -q apps db crag_engine packages scripts
+        run: python -m compileall -q apps db crag_anchor packages scripts
       - name: Timestamp convention gate
         run: python scripts/test-timestamp-convention.py
       - name: Run test suites

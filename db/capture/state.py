@@ -5,7 +5,7 @@ A tiny, DEDICATED sqlite file (default db/capture-state.db, configurable via
 [capture].watermark_store) — deliberately NOT a table inside engine.db, so the
 tailer never contends with the daemon's WAL writer and capture state has
 zero migration coupling to the corpus schema. Same resumability contract as
-the crag engine daemon itself: restart-proof, per-file byte-offset watermark.
+the crag Anchor daemon itself: restart-proof, per-file byte-offset watermark.
 
 House style: pure functions taking a resolved db path (opened per-call,
 short-lived connections — this is a low-frequency, single-writer store, no

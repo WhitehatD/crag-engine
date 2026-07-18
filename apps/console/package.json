@@ -1,9 +1,9 @@
 {
-  "name": "crag-engine-console",
+  "name": "crag-anchor-console",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Embedded operator console for the crag engine daemon — served at /console.",
+  "description": "Embedded operator console for the crag Anchor daemon — served at /console.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

@@ -1,8 +1,8 @@
 {
   "$schema": "https://openmcp.ai/schema/v1/descriptor.json",
-  "name": "crag-engine",
+  "name": "crag-anchor",
   "version": "0.3.2",
-  "description": "crag-engine cross-session memory — 26 MCP tools (generated from capabilities.TOOLS_MANIFEST).",
+  "description": "crag Anchor cross-session memory — 26 MCP tools (generated from capabilities.TOOLS_MANIFEST).",
   "transport": "stdio",
   "tools": [
     {
@@ -593,7 +593,7 @@
     },
     {
       "name": "health_check",
-      "description": "Structured self-check of the crag-engine across 5 failure classes (proxy cord, embedding backlog, DB corruption, token ledger, VPS tunnel). Call before risky operations.",
+      "description": "Structured self-check of the crag Anchor across 5 failure classes (proxy cord, embedding backlog, DB corruption, token ledger, VPS tunnel). Call before risky operations.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -799,7 +799,7 @@
     },
     {
       "name": "engine_guide",
-      "description": "Return a structured JSON guide to all engine tools, endpoints, and workflows. Call when you are new to the crag-engine system or want to know what's available.",
+      "description": "Return a structured JSON guide to all engine tools, endpoints, and workflows. Call when you are new to the crag Anchor system or want to know what's available.",
       "inputSchema": {
         "type": "object",
         "properties": {

@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 # `pip install -e .` from a checkout puts the four console scripts on PATH.
 # The app files themselves stay single-file scripts in apps/ + db/;
-# crag_engine/ carries thin main() shims that runpy-exec them.
-name = "crag-engine"
+# crag_anchor/ carries thin main() shims that runpy-exec them.
+name = "crag-anchor"
 version = "0.1.0"
 description = "The verified-memory engine for crag — claim layer, grounding, disposition, and capture. Unit tests for memory."
 readme = "README.md"
@@ -16,8 +16,8 @@ authors = [{ name = "Alexandru Cioc (WhitehatD)" }]
 keywords = ["claude-code", "cursor", "memory", "grounding", "mcp", "crag"]
 
 # Core runtime — the daemon's HTTP stack + the MCP client + numpy data plane.
-# These are the imports that MUST be present for `crag-engine` to start and
-# `crag-engine-mcp` to speak stdio. Heavy embedding deps (onnxruntime/fastembed) are
+# These are the imports that MUST be present for `crag-anchor` to start and
+# `crag-anchor-mcp` to speak stdio. Heavy embedding deps (onnxruntime/fastembed) are
 # in the optional `embeddings` extra — the daemon starts fail-soft without them
 # (embed model loads lazily; /health reports 503 until ready, process runs).
 dependencies = [
@@ -50,17 +50,17 @@ all = [
 ]
 
 [project.scripts]
-crag-engine = "crag_engine.daemon:main"
-crag-engine-mcp = "crag_engine.mcp:main"
-crag-engine-cli = "crag_engine.cli:main"
+crag-anchor = "crag_anchor.daemon:main"
+crag-anchor-mcp = "crag_anchor.mcp:main"
+crag-anchor-cli = "crag_anchor.cli:main"
 
 [tool.setuptools]
-# Only crag_engine/ is an importable package. The app scripts (apps/, db/) are
+# Only crag_anchor/ is an importable package. The app scripts (apps/, db/) are
 # single-file scripts executed by the shims via runpy — they are NOT installed
 # as modules (that would require renaming the hyphenated files). An editable
 # install from the checkout is the supported install mode; the shims locate the
-# repo tree relative to crag_engine/ at runtime (see crag_engine/__init__.py).
-packages = ["crag_engine"]
+# repo tree relative to crag_anchor/ at runtime (see crag_anchor/__init__.py).
+packages = ["crag_anchor"]
 
 [tool.ruff]
 # Files CI lints — CI and ci-local.sh both source this list.
@@ -72,7 +72,7 @@ include = [
     "apps/collector/migrate-token-ledger.py",
     "apps/cron/**/*.py",
     "db/**/*.py",
-    "crag_engine/**/*.py",
+    "crag_anchor/**/*.py",
     "packages/pricing/**/*.py",
 ]
 

@@ -41,7 +41,7 @@ this pipeline.
 Scheduling (default is the in-daemon lifespan task above; the following are
 OPTIONAL alternatives for hosts that disable it via daemon_task_enabled=false):
   Windows Task Scheduler:
-    schtasks /create /tn "CragEngineCapture" /tr "<python> <this file> --once" /sc minute /mo 5
+    schtasks /create /tn "CragAnchorCapture" /tr "<python> <this file> --once" /sc minute /mo 5
   Linux/mac cron: */5 * * * * <python> <this file> --once
   Claude Code hook wiring:
     PreCompact / SessionEnd -> this script --once --force-close-tail (latency nudge only;
@@ -57,7 +57,7 @@ import sys
 import time
 from pathlib import Path
 
-logger = logging.getLogger("crag-engine-capture")
+logger = logging.getLogger("crag-anchor-capture")
 
 _THIS_DIR = Path(__file__).resolve().parent            # db/capture/
 _DB_DIR = _THIS_DIR.parent                                # db/

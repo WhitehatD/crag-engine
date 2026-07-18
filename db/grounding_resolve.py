@@ -50,7 +50,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:

@@ -42,7 +42,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 # Same-process mutual exclusion for the claim critical section. The daemon
 # runs all grounding workers as `run_in_executor(None, _drain)` calls inside
@@ -113,7 +113,7 @@ _SECRET_PATTERNS = (
 )
 
 _CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-_PROBE_TIMEOUT_SEC = int(os.environ.get("CRAG_ENGINE_GROUNDING_STEP_TIMEOUT", "20"))
+_PROBE_TIMEOUT_SEC = int(os.environ.get("CRAG_ANCHOR_GROUNDING_STEP_TIMEOUT", "20"))
 
 # ---------------------------------------------------------------------------
 # Job queue helpers

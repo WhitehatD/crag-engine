@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-crag engine daemon
+crag Anchor daemon
 FastAPI service on 127.0.0.1:8786. Holds the embedding model in memory and
 exposes the full memory surface over HTTP. The MCP server is a thin client to this.
 
@@ -20,7 +20,7 @@ Endpoints (core; see route decorators for the full surface):
   POST /arena_batch     -- bulk arena adjudication (WS3a)
   POST /clear_suspect_batch -- bulk FP-flag clearing (WS3a)
 
-Bind: 127.0.0.1:8786 by default (CRAG_ENGINE_DAEMON_HOST/PORT to override).
+Bind: 127.0.0.1:8786 by default (CRAG_ANCHOR_DAEMON_HOST/PORT to override).
 Logs: <log_dir>/daemon.log (JSON, daily rotation, 7-day retention). log_dir
 resolves via db/engine_paths.py (default <repo>/logs).
 """
@@ -56,14 +56,14 @@ from pydantic import BaseModel, Field
 
 DAEMON_DIR = Path(__file__).parent
 # Repo root since Tier-1 split (2026-05-17): apps/daemon/engine_daemon.py →
-# parents = [apps/daemon, apps, <root>].  db/ and logs/ live at the crag-engine root.
+# parents = [apps/daemon, apps, <root>].  db/ and logs/ live at the crag-anchor root.
 # NOTE: DB_DIR is where the daemon's sibling modules live (embed, scoring,
 # entity_extract, engine_paths, …); it is ALWAYS repo-relative regardless of a
-# CRAG_ENGINE_HOME override, because those .py files ship with the package. Runtime
+# CRAG_ANCHOR_HOME override, because those .py files ship with the package. Runtime
 # DATA paths (DB_PATH, LOG_DIR, bind) come from db/engine_paths.py instead, which
 # resolves env → stack.toml → repo-relative default (see that module).
-CRAG_ENGINE_ROOT = DAEMON_DIR.parent.parent
-DB_DIR = CRAG_ENGINE_ROOT / "db"
+CRAG_ANCHOR_ROOT = DAEMON_DIR.parent.parent
+DB_DIR = CRAG_ANCHOR_ROOT / "db"
 
 # Make embed.py, entity_extract.py, contradiction.py, transcript_tokens.py,
 # and engine_paths.py importable BEFORE we resolve data paths from engine_paths.
@@ -78,8 +78,8 @@ _BP = _get_engine_paths()
 DB_PATH = _BP.db_path
 LOG_DIR = _BP.log_dir
 LOG_PATH = LOG_DIR / "daemon.log"
-# Debug flag: set CRAG_ENGINE_DAEMON_DEBUG=1 to enable DEBUG-level logging
-_DEBUG_MODE = os.environ.get("CRAG_ENGINE_DAEMON_DEBUG", "0").strip() == "1"
+# Debug flag: set CRAG_ANCHOR_DAEMON_DEBUG=1 to enable DEBUG-level logging
+_DEBUG_MODE = os.environ.get("CRAG_ANCHOR_DAEMON_DEBUG", "0").strip() == "1"
 VERSION = "25.0.0"  # keep in sync with highest applied migration phase
 PORT = _BP.daemon_port
 HOST = _BP.daemon_host
@@ -177,7 +177,7 @@ except Exception as _cap_err:  # broad: capture subtree has optional deps
 
 # WS4 — canonical per-model pricing (packages/pricing/pricing.py). Used for
 # model-aware ROI cost math instead of a hardcoded $3/$15 blend.
-sys.path.insert(0, str(CRAG_ENGINE_ROOT))
+sys.path.insert(0, str(CRAG_ANCHOR_ROOT))
 from packages.pricing.pricing import get_rates as _get_model_rates  # noqa: E402
 _DEFAULT_COST_MODEL = "claude-fable-5"
 import broadcaster as _broadcaster_module  # Phase 10
@@ -205,7 +205,7 @@ class JsonFormatter(logging.Formatter):
 
 def _setup_logging():
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    root = logging.getLogger("crag-engine")
+    root = logging.getLogger("crag-anchor")
     root.setLevel(logging.DEBUG if _DEBUG_MODE else logging.INFO)
     if root.handlers:
         return root  # already set up
@@ -278,7 +278,7 @@ def _table_exists(conn, name: str) -> bool:
 def _bootstrap_empty_db() -> None:
     """Bring a brand-new DB to the current schema at daemon startup.
 
-    Mirrors `crag-engine-cli init` + `migrate`: applies db/schema.sql when the
+    Mirrors `crag-anchor-cli init` + `migrate`: applies db/schema.sql when the
     base schema is absent, then executes every unapplied db/migrations/NNN_*.sql
     in version order (version-checked against schema_version, so this is
     idempotent and a fast no-op on an already-migrated DB). Called once from
@@ -1677,7 +1677,7 @@ def _do_recall_stats(project: Optional[str], days: int) -> dict:
 # candidates it merely logged remain visible via recall_stats).
 # ---------------------------------------------------------------------------
 
-DECAY_LOOP_INTERVAL_S = int(os.environ.get("CRAG_ENGINE_DECAY_INTERVAL_S", str(7 * 86400)))  # weekly
+DECAY_LOOP_INTERVAL_S = int(os.environ.get("CRAG_ANCHOR_DECAY_INTERVAL_S", str(7 * 86400)))  # weekly
 
 
 def _run_decay_once() -> dict:
@@ -1778,7 +1778,7 @@ async def _retry_model_load_async(max_attempts: int = 10, interval_s: int = 60):
 
 if _GROUNDING_V2:
     # grounding_config.get_config() already merges stack.toml [grounding] +
-    # the same CRAG_ENGINE_GROUNDING_WORKER_SLEEP/_CONCURRENCY env var names (env
+    # the same CRAG_ANCHOR_GROUNDING_WORKER_SLEEP/_CONCURRENCY env var names (env
     # always wins there too) — Phase 1b single-source-of-truth seam.
     _grounding_cfg_boot = _grounding_config.get_config()
     _GROUNDING_WORKER_SLEEP_S: float = _grounding_cfg_boot.poll_interval_sec
@@ -1786,13 +1786,13 @@ if _GROUNDING_V2:
     _GROUNDING_MIN_CALL_INTERVAL_S: float = _grounding_cfg_boot.min_call_interval_sec
 else:
     _GROUNDING_WORKER_SLEEP_S: float = float(
-        os.environ.get("CRAG_ENGINE_GROUNDING_WORKER_SLEEP", "5")
+        os.environ.get("CRAG_ANCHOR_GROUNDING_WORKER_SLEEP", "5")
     )
     _GROUNDING_WORKER_CONCURRENCY: int = int(
-        os.environ.get("CRAG_ENGINE_GROUNDING_WORKER_CONCURRENCY", "2")
+        os.environ.get("CRAG_ANCHOR_GROUNDING_WORKER_CONCURRENCY", "2")
     )
     _GROUNDING_MIN_CALL_INTERVAL_S: float = float(
-        os.environ.get("CRAG_ENGINE_GROUNDING_MIN_CALL_INTERVAL", "8")
+        os.environ.get("CRAG_ANCHOR_GROUNDING_MIN_CALL_INTERVAL", "8")
     )
 
 
@@ -1845,10 +1845,10 @@ if _GROUNDING_V2:
     _GROUNDING_SWEEP_BATCH: int = _grounding_cfg_boot.sweep_batch
 else:
     _GROUNDING_SWEEP_INTERVAL_S: float = float(
-        os.environ.get("CRAG_ENGINE_GROUNDING_SWEEP_INTERVAL", "60")
+        os.environ.get("CRAG_ANCHOR_GROUNDING_SWEEP_INTERVAL", "60")
     )
     _GROUNDING_SWEEP_BATCH: int = int(
-        os.environ.get("CRAG_ENGINE_GROUNDING_SWEEP_BATCH", "10")
+        os.environ.get("CRAG_ANCHOR_GROUNDING_SWEEP_BATCH", "10")
     )
 
 
@@ -1929,13 +1929,13 @@ async def _capture_task_loop():
 # ever"). POST /disposition/drain existed but nothing called it — staging
 # rows past deadline never aged on their own. In-process function call
 # (never an HTTP self-POST). Env overrides (grounding_config house pattern):
-#   CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED (default 1)
-#   CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC (default 3600, min clamp 60)
+#   CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED (default 1)
+#   CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC (default 3600, min clamp 60)
 def _drain_sweep_config() -> tuple:
-    enabled = os.environ.get("CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED", "1") not in (
+    enabled = os.environ.get("CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED", "1") not in (
         "0", "false", "False", "no")
     try:
-        interval = float(os.environ.get("CRAG_ENGINE_DISPOSITION_DRAIN_INTERVAL_SEC", "3600"))
+        interval = float(os.environ.get("CRAG_ANCHOR_DISPOSITION_DRAIN_INTERVAL_SEC", "3600"))
     except ValueError:
         interval = 3600.0
     return enabled, max(60.0, interval)
@@ -1948,7 +1948,7 @@ async def _drain_sweep_loop():
     loop = asyncio.get_event_loop()
     enabled, interval = _drain_sweep_config()
     if not enabled:
-        logger.info("drain sweep: disabled by config (CRAG_ENGINE_DISPOSITION_DRAIN_ENABLED=0)")
+        logger.info("drain sweep: disabled by config (CRAG_ANCHOR_DISPOSITION_DRAIN_ENABLED=0)")
         return
     if not _DISPOSITION:
         logger.info("drain sweep: disposition module unavailable — not started")
@@ -1981,14 +1981,14 @@ async def lifespan(app: FastAPI):
     # REV 4 item 2 — sync-folder corruption guard. Refuse to start if the DB
     # resolves under a Dropbox/OneDrive/Google Drive/iCloud/Syncthing/.sync
     # tree (documented SQLite corruption class). Escape hatch:
-    # CRAG_ENGINE_ALLOW_SYNC_PATH=1 downgrades to a loud warning. Runs FIRST so a
+    # CRAG_ANCHOR_ALLOW_SYNC_PATH=1 downgrades to a loud warning. Runs FIRST so a
     # misconfigured deployment fails fast before any DB work.
     if _SYNC_GUARD:
         _sync_path_guard.check_db_path(DB_PATH, logger=logger)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     # Fresh-DB bootstrap: on a brand-new (or pre-schema) DB, apply db/schema.sql
-    # plus every numbered migration so `crag-engine` works out of the box on a
-    # clean clone — no separate `crag-engine-cli migrate` step required.
+    # plus every numbered migration so `crag-anchor` works out of the box on a
+    # clean clone — no separate `crag-anchor-cli migrate` step required.
     # Idempotent (version-checked against schema_version) and a no-op on any
     # already-migrated DB; fail-soft per house style (a bootstrap error leaves
     # the daemon degraded but alive, and endpoints report the missing tables).
@@ -2057,7 +2057,7 @@ async def lifespan(app: FastAPI):
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="crag engine daemon", version=VERSION, lifespan=lifespan)
+app = FastAPI(title="crag Anchor daemon", version=VERSION, lifespan=lifespan)
 
 # Read-model aggregates for the surface consumers (CLI/console/cloud/ops) —
 # /overview /inbox /rules /console/modules. ONE contract, four consumers
@@ -2598,24 +2598,24 @@ async def metrics(request: Request):
     conn.close()
 
     lines = [
-        "# HELP crag_engine_requests_total Total requests served",
-        "# TYPE crag_engine_requests_total counter",
-        f"crag_engine_requests_total {_stats['requests_served']}",
-        "# HELP crag_engine_model_loaded 1 if embedding model is loaded",
-        "# TYPE crag_engine_model_loaded gauge",
-        f"crag_engine_model_loaded {1 if _model_loaded else 0}",
-        "# HELP crag_engine_embed_avg_ms Average embedding time (ms)",
-        "# TYPE crag_engine_embed_avg_ms gauge",
-        f"crag_engine_embed_avg_ms {round(sum(embed_times)/len(embed_times), 2) if embed_times else 0}",
-        "# HELP crag_engine_recall_avg_ms Average recall time (ms)",
-        "# TYPE crag_engine_recall_avg_ms gauge",
-        f"crag_engine_recall_avg_ms {round(sum(recall_times)/len(recall_times), 2) if recall_times else 0}",
-        "# HELP crag_engine_active_insights Active insights count",
-        "# TYPE crag_engine_active_insights gauge",
-        f"crag_engine_active_insights {active_insights}",
-        "# HELP crag_engine_uptime_seconds Daemon uptime in seconds",
-        "# TYPE crag_engine_uptime_seconds gauge",
-        f"crag_engine_uptime_seconds {round(time.time() - _start_time, 1)}",
+        "# HELP crag_anchor_requests_total Total requests served",
+        "# TYPE crag_anchor_requests_total counter",
+        f"crag_anchor_requests_total {_stats['requests_served']}",
+        "# HELP crag_anchor_model_loaded 1 if embedding model is loaded",
+        "# TYPE crag_anchor_model_loaded gauge",
+        f"crag_anchor_model_loaded {1 if _model_loaded else 0}",
+        "# HELP crag_anchor_embed_avg_ms Average embedding time (ms)",
+        "# TYPE crag_anchor_embed_avg_ms gauge",
+        f"crag_anchor_embed_avg_ms {round(sum(embed_times)/len(embed_times), 2) if embed_times else 0}",
+        "# HELP crag_anchor_recall_avg_ms Average recall time (ms)",
+        "# TYPE crag_anchor_recall_avg_ms gauge",
+        f"crag_anchor_recall_avg_ms {round(sum(recall_times)/len(recall_times), 2) if recall_times else 0}",
+        "# HELP crag_anchor_active_insights Active insights count",
+        "# TYPE crag_anchor_active_insights gauge",
+        f"crag_anchor_active_insights {active_insights}",
+        "# HELP crag_anchor_uptime_seconds Daemon uptime in seconds",
+        "# TYPE crag_anchor_uptime_seconds gauge",
+        f"crag_anchor_uptime_seconds {round(time.time() - _start_time, 1)}",
     ]
     _log_request(request, "/metrics", (time.perf_counter() - t0) * 1000)
     return "\n".join(lines) + "\n"
@@ -3390,9 +3390,9 @@ async def recall_by_entity(body: RecallByEntityBody, request: Request):
 
 # ── Phase 13 — Memory arena (supersede edges + adjudication) ──────────────────
 #
-# These endpoints delegate the heavy lifting to the crag-engine-cli command functions
+# These endpoints delegate the heavy lifting to the crag-anchor-cli command functions
 # imported from the db module.  Doing it this way keeps a single source of
-# truth for the adjudication logic — crag-engine-cli's cmd_arena() and the daemon
+# truth for the adjudication logic — crag-anchor-cli's cmd_arena() and the daemon
 # /arena endpoint always agree because they ARE the same code path.
 
 def _do_arena(conn, insight_ids: list, strategy: str, project: Optional[str],
@@ -3945,7 +3945,7 @@ async def ground_enqueue(body: GroundEnqueueBody):
     def _do():
         conn = get_db()
         if not _table_exists(conn, "grounding_queue"):
-            return {"ok": False, "error": "grounding not migrated (run crag-engine-cli migrate)"}
+            return {"ok": False, "error": "grounding not migrated (run crag-anchor-cli migrate)"}
         now = datetime.now(timezone.utc).isoformat()
         ok = _ground_enqueue_row(conn, body.claim_kind, body.claim_id, body.reason,
                                  body.trigger_src, body.detail, now)
@@ -3964,7 +3964,7 @@ async def ground_enqueue_by_source(body: GroundEnqueueBySourceBody):
     def _do():
         conn = get_db()
         if not _table_exists(conn, "grounding_queue"):
-            return {"ok": False, "error": "grounding not migrated (run crag-engine-cli migrate)"}
+            return {"ok": False, "error": "grounding not migrated (run crag-anchor-cli migrate)"}
         now = datetime.now(timezone.utc).isoformat()
         ins: set[int] = set()
         prin: set[int] = set()
@@ -4119,7 +4119,7 @@ async def ground_jobs_enqueue(body: GroundJobsEnqueueBody):
     def _do():
         conn = get_db()
         if not _table_exists(conn, "grounding_jobs"):
-            return {"ok": False, "error": "grounding_jobs table missing (run crag-engine-cli migrate)"}
+            return {"ok": False, "error": "grounding_jobs table missing (run crag-anchor-cli migrate)"}
         inserted = _gv2_enqueue_job(conn, body.claim_kind, body.claim_id,
                                     body.job_type, priority=body.priority)
         conn.commit()
@@ -4709,7 +4709,7 @@ _CAPTURE_UNAUTH_WARNED = False
 def _capture_event_token() -> str:
     """Resolve the configured shared secret for POST /capture/event.
     Precedence: [capture].auth_token_file (gitignored token file) > env
-    CRAG_ENGINE_CAPTURE_TOKEN > [capture].event_token > "" (fail-open). Reads via the
+    CRAG_ANCHOR_CAPTURE_TOKEN > [capture].event_token > "" (fail-open). Reads via the
     capture config accessor (which owns the file-vs-inline precedence) when
     available; falls back to the raw env var so auth still works even if the
     capture package is absent."""
@@ -4718,7 +4718,7 @@ def _capture_event_token() -> str:
             return str(_capture_config.effective_event_token() or "")
         except Exception:
             pass
-    return str(os.environ.get("CRAG_ENGINE_CAPTURE_TOKEN", "") or "")
+    return str(os.environ.get("CRAG_ANCHOR_CAPTURE_TOKEN", "") or "")
 
 
 def _authenticate_capture_event(request: "Request") -> Optional[JSONResponse]:
@@ -4736,7 +4736,7 @@ def _authenticate_capture_event(request: "Request") -> Optional[JSONResponse]:
             _CAPTURE_UNAUTH_WARNED = True
             logger.warning(
                 "/capture/event is UNAUTHENTICATED (no [capture].event_token / "
-                "CRAG_ENGINE_CAPTURE_TOKEN set) — accepting loopback POSTs without a "
+                "CRAG_ANCHOR_CAPTURE_TOKEN set) — accepting loopback POSTs without a "
                 "shared secret. Set a token to enable the rev-9 §9.2 guarantee."
             )
         return None
@@ -4776,7 +4776,7 @@ async def capture_event(body: CaptureEventBody, request: Request):
     # loopback POST was accepted without a shared secret.
     _unauth_advisory = None if _capture_event_token() else (
         "capture-event auth disabled (no [capture].auth_token_file / "
-        "event_token / CRAG_ENGINE_CAPTURE_TOKEN) — accepted without a shared secret"
+        "event_token / CRAG_ANCHOR_CAPTURE_TOKEN) — accepted without a shared secret"
     )
     loop = asyncio.get_event_loop()
 
@@ -5843,7 +5843,7 @@ TASK_TYPE_SEEDS = {
     "frontend": "React component CSS UI page layout form i18n locale frontend",
     "backend": "API endpoint database migration entity controller service repository backend",
     "infra": "infrastructure Docker Kubernetes terraform proxy nginx tunnel VPS server",
-    "memory": "crag engine daemon recall insight principle embedding cognitive memory MCP",
+    "memory": "crag Anchor daemon recall insight principle embedding cognitive memory MCP",
     "watchdog": "watchdog stack health monitor scheduled-task restart hysteresis",
     "notification": "notification alert push topic webhook permission",
     "security": "security secret token credential vulnerability authentication authorization OIDC JWT",
@@ -6124,7 +6124,7 @@ async def subscribe(request: Request):
 
     async def event_gen():
         try:
-            yield f"event: hello\ndata: {{\"server\":\"crag-engine\",\"version\":\"{VERSION}\"}}\n\n"
+            yield f"event: hello\ndata: {{\"server\":\"crag-anchor\",\"version\":\"{VERSION}\"}}\n\n"
             while True:
                 if await request.is_disconnected():
                     break
@@ -10017,7 +10017,7 @@ async def lifecycle_session_add(body: SessionAddBody):
             # best-effort, never fabricate a link).
             session_uuid = body.session_uuid
             if not session_uuid:
-                max_age_min = int(os.environ.get("CRAG_ENGINE_SESSION_LINK_MAX_AGE_MIN", "240"))
+                max_age_min = int(os.environ.get("CRAG_ANCHOR_SESSION_LINK_MAX_AGE_MIN", "240"))
                 cutoff = (datetime.now(timezone.utc) - timedelta(minutes=max_age_min)).isoformat()
                 resolved = conn.execute(
                     """SELECT session_uuid FROM session_meta
@@ -10512,7 +10512,7 @@ async def llms_txt():
 
 @app.get("/guide")
 async def guide():
-    """Structured JSON guide to all crag-engine tools and endpoints."""
+    """Structured JSON guide to all crag-anchor tools and endpoints."""
     cap = _load_capabilities()
     return JSONResponse(content=cap.render_guide())
 
@@ -10816,12 +10816,12 @@ def _mount_console() -> None:
         return
 
     # Config-driven frame policy for embedding. When
-    # CRAG_ENGINE_CONSOLE_FRAME_ANCESTORS is set (space-separated origins), the
+    # CRAG_ANCHOR_CONSOLE_FRAME_ANCESTORS is set (space-separated origins), the
     # console mount emits a CSP frame-ancestors header so those hosts may iframe
     # it (e.g. "https://app.crag.sh"). Unset => no header, browser same-origin
     # default applies. Scoped to the console static mount only — the API is
     # untouched.
-    _frame_ancestors = os.environ.get("CRAG_ENGINE_CONSOLE_FRAME_ANCESTORS", "").strip()
+    _frame_ancestors = os.environ.get("CRAG_ANCHOR_CONSOLE_FRAME_ANCESTORS", "").strip()
 
     class _SpaStaticFiles(StaticFiles):
         """StaticFiles that falls back to index.html for unmatched paths so the

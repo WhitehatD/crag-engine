@@ -17,7 +17,7 @@ import json
 import logging
 import time
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 SUBSCRIBER_QUEUE_MAX = 64
 HEARTBEAT_INTERVAL_SEC = 25  # SSE keepalive

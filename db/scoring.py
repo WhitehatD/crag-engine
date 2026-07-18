@@ -1,4 +1,4 @@
-"""crag-engine scoring & lifecycle constants — SINGLE SOURCE OF TRUTH (WS2 T6).
+"""crag-anchor scoring & lifecycle constants — SINGLE SOURCE OF TRUTH (WS2 T6).
 
 Every tunable that governs how the engine ranks, verifies, promotes, decays,
 dedups, and grounds knowledge lived scattered across engine_daemon.py (3×
@@ -97,5 +97,5 @@ def liveness_multiplier(verdict: str | None) -> float:
 # single-place discovery. contradiction.py remains the authority (env-overridable
 # there); these mirror its NEW WS2 defaults so a reader finds all knobs here too.
 # ---------------------------------------------------------------------------
-CONTRA_COSINE_THRESHOLD: float = float(os.environ.get("CRAG_ENGINE_CONTRA_COSINE", "0.70"))  # unvalidated-heuristic (WS2: 0.55→0.70)
-CONTRA_ENTAIL_THRESHOLD: float = float(os.environ.get("CRAG_ENGINE_CONTRA_ENTAIL", "0.90"))  # unvalidated-heuristic (WS2: 0.70→0.90)
+CONTRA_COSINE_THRESHOLD: float = float(os.environ.get("CRAG_ANCHOR_CONTRA_COSINE", "0.70"))  # unvalidated-heuristic (WS2: 0.55→0.70)
+CONTRA_ENTAIL_THRESHOLD: float = float(os.environ.get("CRAG_ANCHOR_CONTRA_ENTAIL", "0.90"))  # unvalidated-heuristic (WS2: 0.70→0.90)

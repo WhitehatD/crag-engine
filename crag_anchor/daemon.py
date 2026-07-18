@@ -1,5 +1,5 @@
 # coding: utf-8
-"""Console-entry shim: `crag-engine` -> apps/daemon/engine_daemon.py."""
+"""Console-entry shim: `crag-anchor` -> apps/daemon/engine_daemon.py."""
 from __future__ import annotations
 
 from . import run_script

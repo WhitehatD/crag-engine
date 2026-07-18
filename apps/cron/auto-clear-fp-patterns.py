@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-# CRAG_ENGINE_DB_PATH / CRAG_ENGINE_LOG_DIR defaults resolve through the shared
+# CRAG_ANCHOR_DB_PATH / CRAG_ANCHOR_LOG_DIR defaults resolve through the shared
 # accessor db/engine_paths.py (env → stack.toml → today's default). The explicit
 # env vars still win (preserved below); when unset the
 # accessor supplies db_path / log_dir instead of the old hardcoded literals.
@@ -47,20 +47,20 @@ try:
 except Exception:
     _BP = None
 
-DAEMON_URL = os.environ.get("CRAG_ENGINE_DAEMON_URL", "http://127.0.0.1:8786")
-if os.environ.get("CRAG_ENGINE_DB_PATH"):
-    ENGINE_DB = Path(os.environ["CRAG_ENGINE_DB_PATH"])
+DAEMON_URL = os.environ.get("CRAG_ANCHOR_DAEMON_URL", "http://127.0.0.1:8786")
+if os.environ.get("CRAG_ANCHOR_DB_PATH"):
+    ENGINE_DB = Path(os.environ["CRAG_ANCHOR_DB_PATH"])
 elif _BP is not None:
     ENGINE_DB = _BP.db_path
 else:
     ENGINE_DB = Path(__file__).resolve().parent.parent.parent / "db" / "engine.db"
-TEMPORAL_COHORT_SECONDS = int(os.environ.get("CRAG_ENGINE_CONTRA_TEMPORAL_COHORT_SECONDS", "7200"))
-SAME_SOURCE_FILE = os.environ.get("CRAG_ENGINE_CONTRA_SKIP_SAME_SOURCE", "0") == "1"
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "crag-engine")
+TEMPORAL_COHORT_SECONDS = int(os.environ.get("CRAG_ANCHOR_CONTRA_TEMPORAL_COHORT_SECONDS", "7200"))
+SAME_SOURCE_FILE = os.environ.get("CRAG_ANCHOR_CONTRA_SKIP_SAME_SOURCE", "0") == "1"
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "crag-anchor")
 NTFY_URL = os.environ.get("NTFY_URL", "")  # empty = notifications disabled
 
-if os.environ.get("CRAG_ENGINE_LOG_DIR"):
-    LOG_DIR = Path(os.environ["CRAG_ENGINE_LOG_DIR"])
+if os.environ.get("CRAG_ANCHOR_LOG_DIR"):
+    LOG_DIR = Path(os.environ["CRAG_ANCHOR_LOG_DIR"])
 elif _BP is not None:
     LOG_DIR = _BP.log_dir
 else:
@@ -215,7 +215,7 @@ def _send_ntfy(message: str, priority: str = "default") -> None:
     req = urllib.request.Request(
         url,
         data=message.encode("utf-8"),
-        headers={"Priority": priority, "Title": "crag-engine FP-sweep"},
+        headers={"Priority": priority, "Title": "crag-anchor FP-sweep"},
         method="POST",
     )
     try:

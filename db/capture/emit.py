@@ -32,7 +32,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("crag-engine-capture")
+logger = logging.getLogger("crag-anchor-capture")
 
 _THIS_DIR = Path(__file__).resolve().parent           # db/capture/
 _DB_DIR = _THIS_DIR.parent                              # db/
@@ -115,7 +115,7 @@ def is_known_lesson(engine_db_path: str, text: str, threshold: float) -> bool:
 def _resolve_event_token() -> str:
     """Resolve the shared secret to authenticate POST /capture/event (rev-9
     §9.2). Uses the same file-vs-inline precedence the daemon enforces
-    (auth_token_file > CRAG_ENGINE_CAPTURE_TOKEN > [capture].event_token) via
+    (auth_token_file > CRAG_ANCHOR_CAPTURE_TOKEN > [capture].event_token) via
     config.effective_event_token; falls back to the raw env var if config is
     unavailable. "" means fail-open (daemon accepts unauthenticated)."""
     try:
@@ -125,7 +125,7 @@ def _resolve_event_token() -> str:
         return str(getattr(capture_config.get_config(), "event_token", "") or "")
     except Exception:
         import os
-        return str(os.environ.get("CRAG_ENGINE_CAPTURE_TOKEN", "") or "")
+        return str(os.environ.get("CRAG_ANCHOR_CAPTURE_TOKEN", "") or "")
 
 
 def post_capture_event(daemon_url: str, source: str, payload: dict,

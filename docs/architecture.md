@@ -1,4 +1,4 @@
-# crag-engine architecture
+# crag Anchor architecture
 
 An honest, high-level map of the system. Everything here is derived from the
 code in this repo; file paths are given so you can verify any claim.
@@ -28,15 +28,15 @@ db/engine.db                  ← SQLite in WAL mode. Single file, plus
                                  sidecar state DBs for capture + token events.
 ```
 
-- **Console entry points** (`pyproject.toml [project.scripts]`): `crag-engine`
-  (daemon), `crag-engine-mcp` (MCP server), `crag-engine-cli` (operator
-  lifecycle tooling: migrate / backfill / decay). The `crag_engine/` package
+- **Console entry points** (`pyproject.toml [project.scripts]`): `crag-anchor`
+  (daemon), `crag-anchor-mcp` (MCP server), `crag-anchor-cli` (operator
+  lifecycle tooling: migrate / backfill / decay). The `crag_anchor/` package
   contains thin runpy shims that execute the single-file app scripts from the
   checkout.
 - **Path/bind resolution** (`db/engine_paths.py`): every path and the daemon
   bind resolve as *env var → `db/stack.toml` → repo-relative default*. Env
   always wins; deleting `stack.toml` breaks nothing.
-- **Migrations** (`db/migrations/*.sql`, applied by `crag-engine-cli migrate`
+- **Migrations** (`db/migrations/*.sql`, applied by `crag-anchor-cli migrate`
   and auto-applied by the daemon on boot against an empty DB): numbered,
   append-only, idempotent (version-checked against `schema_version`).
 
@@ -172,7 +172,7 @@ Fail-open: any client error returns `None` and the caller degrades gracefully.
 ## 8. Observability & self-description
 
 - `GET /health` — daemon health + model state.
-- `GET /metrics` — Prometheus text (`crag_engine_*` counters/gauges).
+- `GET /metrics` — Prometheus text (`crag_anchor_*` counters/gauges).
 - `GET /guide`, `GET /llms.txt` — machine-readable surface docs
   (`db/capabilities.py`); also exposed as the `engine_guide` MCP tool and the
   `engine://guide` MCP resource.

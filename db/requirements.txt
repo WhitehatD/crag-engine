@@ -1,4 +1,4 @@
-# crag-engine Python dependencies
+# crag-anchor Python dependencies
 # Install: pip install -r db/requirements.txt
 #
 # Core (usually pre-installed via pip):

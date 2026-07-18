@@ -149,7 +149,7 @@ export function RootLayout() {
               className="inline-block h-3 w-3 rounded-[3px]"
               style={{ background: "var(--color-brand)" }}
             />
-            <span className="text-[13px] font-semibold tracking-tight">crag engine</span>
+            <span className="text-[13px] font-semibold tracking-tight">crag Anchor</span>
             <span className="hidden text-[11px] text-[var(--color-muted)] sm:inline">
               console
             </span>

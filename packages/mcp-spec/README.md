@@ -1,9 +1,9 @@
-# packages/mcp-spec — OpenMCP descriptor for crag-engine
+# packages/mcp-spec — OpenMCP descriptor for crag Anchor
 
 ## Purpose
 
-`openmcp.json` declares the MCP tools that the crag-engine MCP server exposes
-(`apps/mcp/mcp-server.py`). External MCPs that want to declare crag-engine
+`openmcp.json` declares the MCP tools that the crag Anchor MCP server exposes
+(`apps/mcp/mcp-server.py`). External MCPs that want to declare crag Anchor
 compatibility reference this descriptor.
 
 > **Note:** the descriptor is a *generated artifact*. The live

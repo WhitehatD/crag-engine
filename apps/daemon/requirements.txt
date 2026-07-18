@@ -1,4 +1,4 @@
-# crag engine daemon — pinned Python dependencies
+# crag Anchor daemon — pinned Python dependencies
 # Install: pip install -r apps/daemon/requirements.txt
 #
 # Mirror of the daemon's runtime imports in apps/daemon/engine_daemon.py plus

@@ -10,12 +10,12 @@ as suspect and record a contradiction_events row.
 WS2 T4 raised both defaults (cosine 0.55→0.70, entail 0.70→0.90) to cut the
 ~75% false-positive rate at SOURCE: the FP-sweep cleared 0 in 7 days while the
 queue grew 16→25, proving precision has to move upstream of the detector, not
-downstream of it. Both remain env-overridable (CRAG_ENGINE_CONTRA_COSINE /
-CRAG_ENGINE_CONTRA_ENTAIL).
+downstream of it. Both remain env-overridable (CRAG_ANCHOR_CONTRA_COSINE /
+CRAG_ANCHOR_CONTRA_ENTAIL).
 
 Authentication architecture
 ---------------------------
-The crag engine daemon does NOT use ANTHROPIC_API_KEY directly. Claude Code (claudex)
+The crag Anchor daemon does NOT use ANTHROPIC_API_KEY directly. Claude Code (claudex)
 authenticates via OAuth against Claude.ai consumer accounts (token cached at
 `~/.claude/.credentials.json` under `.claudeAiOauth.accessToken`). Every
 claudex API call goes through the local proxy chain:
@@ -29,7 +29,7 @@ This module mirrors that chain: it reads the OAuth access token from
 `http://localhost:8788` (the model-router). That way:
   - No separate API key required (no extra cost-source, no rotation work).
   - Calls inherit the same compression + caching the user's claudex traffic gets.
-  - If claudex re-auths, the crag engine daemon picks up the new token on next call.
+  - If claudex re-auths, the crag Anchor daemon picks up the new token on next call.
 
 Conservative defaults (WS2 T4 — precision-at-source; raised to cut FP rate)
 ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ Conservative defaults (WS2 T4 — precision-at-source; raised to cut FP rate)
                                (was 0.70; raised in WS2 — only near-certain
                                entailment reversals flag)
   MAX_NEIGHBORS    = 3     -- cap cost to ~3 Haiku calls per save
-  Env overrides preserved: CRAG_ENGINE_CONTRA_COSINE / CRAG_ENGINE_CONTRA_ENTAIL.
+  Env overrides preserved: CRAG_ANCHOR_CONTRA_COSINE / CRAG_ANCHOR_CONTRA_ENTAIL.
 
 Cost cap: 3 calls × ~50 tokens = ~150 tokens / save. Routed through Headroom
 so cache hits + compression reduce real cost further.
@@ -64,7 +64,7 @@ import numpy as np
 from llm_client import get_client as _get_client  # noqa: F401  (used below)
 from llm_client import GROUNDING_MODEL as HAIKU_MODEL  # re-export name callers expect
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 # ---------------------------------------------------------------------------
 # Tunable thresholds
@@ -72,23 +72,23 @@ logger = logging.getLogger("crag-engine")
 
 # WS2 T4 — raised from 0.55/0.70 to cut FPs at source (env overrides preserved).
 # WS2 T6 — sourced from db/scoring.py (single source of truth; scoring reads the
-# same CRAG_ENGINE_CONTRA_COSINE / CRAG_ENGINE_CONTRA_ENTAIL env vars, so overrides still work).
+# same CRAG_ANCHOR_CONTRA_COSINE / CRAG_ANCHOR_CONTRA_ENTAIL env vars, so overrides still work).
 try:
     from scoring import CONTRA_COSINE_THRESHOLD as COSINE_THRESHOLD  # noqa: F401
     from scoring import CONTRA_ENTAIL_THRESHOLD as ENTAIL_THRESHOLD  # noqa: F401
 except ImportError:  # standalone use without db/ on sys.path — keep local fallback
-    COSINE_THRESHOLD: float = float(os.environ.get("CRAG_ENGINE_CONTRA_COSINE", "0.70"))
-    ENTAIL_THRESHOLD: float = float(os.environ.get("CRAG_ENGINE_CONTRA_ENTAIL", "0.90"))
-MAX_NEIGHBORS: int = int(os.environ.get("CRAG_ENGINE_CONTRA_NEIGHBORS", "3"))
+    COSINE_THRESHOLD: float = float(os.environ.get("CRAG_ANCHOR_CONTRA_COSINE", "0.70"))
+    ENTAIL_THRESHOLD: float = float(os.environ.get("CRAG_ANCHOR_CONTRA_ENTAIL", "0.90"))
+MAX_NEIGHBORS: int = int(os.environ.get("CRAG_ANCHOR_CONTRA_NEIGHBORS", "3"))
 
 # Phase 16-C — multi-stage FP filters (additive; set to 0/false to disable per filter).
 # Default-on because every observed FP this audit (~75% of 33 flagged) would have been
 # caught by one of these filters before the expensive Haiku call.
-SKIP_PROVENANCE: bool = os.environ.get("CRAG_ENGINE_CONTRA_SKIP_PROVENANCE", "1") == "1"
+SKIP_PROVENANCE: bool = os.environ.get("CRAG_ANCHOR_CONTRA_SKIP_PROVENANCE", "1") == "1"
 TEMPORAL_COHORT_SECONDS: int = int(
-    os.environ.get("CRAG_ENGINE_CONTRA_TEMPORAL_COHORT_SECONDS", "7200")  # 2 hours
+    os.environ.get("CRAG_ANCHOR_CONTRA_TEMPORAL_COHORT_SECONDS", "7200")  # 2 hours
 )
-SKIP_SAME_SOURCE_FILE: bool = os.environ.get("CRAG_ENGINE_CONTRA_SKIP_SAME_SOURCE", "0") == "1"
+SKIP_SAME_SOURCE_FILE: bool = os.environ.get("CRAG_ANCHOR_CONTRA_SKIP_SAME_SOURCE", "0") == "1"
 
 HAIKU_MAX_TOKENS: int = 30  # binary classification: just a 0-100 integer
 
@@ -263,7 +263,7 @@ def _same_source_file(
 
     Conservative filter: same source_file usually means complementary aspects
     of one component, not contradiction. OFF by default (set
-    CRAG_ENGINE_CONTRA_SKIP_SAME_SOURCE=1 to enable) because legitimate contradictions
+    CRAG_ANCHOR_CONTRA_SKIP_SAME_SOURCE=1 to enable) because legitimate contradictions
     can still occur within one file (e.g., a refactor that inverts a claim).
     """
     try:

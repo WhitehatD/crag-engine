@@ -6,7 +6,7 @@ LLM calls from any of 4 providers, selected entirely by `db/stack.toml`
 
 Authentication architecture (default provider: anthropic-oauth)
 -----------------------------------------------------------------
-The crag engine daemon does NOT use ANTHROPIC_API_KEY directly by default. Claude
+The crag Anchor daemon does NOT use ANTHROPIC_API_KEY directly by default. Claude
 Code authenticates via OAuth against Claude.ai consumer accounts
 (token cached at `~/.claude/.credentials.json` under
 `.claudeAiOauth.accessToken`). Anthropic accepts that bearer via the
@@ -56,7 +56,7 @@ from typing import Any, Optional
 
 import grounding_config
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 try:
     import anthropic as _anthropic_mod
@@ -294,7 +294,7 @@ def _read_oauth_token() -> Optional[str]:
     """Read the live OAuth access token from claudex's credentials cache.
 
     Called once per LLM request (cheap — a small JSON read) so that if
-    claudex refreshes the token, the crag engine daemon picks up the new one on
+    claudex refreshes the token, the crag Anchor daemon picks up the new one on
     the next call without needing its own refresh logic.
     Returns None if file is missing/malformed.
     """
@@ -380,7 +380,7 @@ class _OpenAICompatClient:
 # ---------------------------------------------------------------------------
 # Per-provider lazy singletons (module-level; per-process — daemon is
 # single-process). Cached separately per provider so a test/CLI that swaps
-# CRAG_ENGINE_GROUNDING_PROVIDER mid-process (via grounding_config.reload_config())
+# CRAG_ANCHOR_GROUNDING_PROVIDER mid-process (via grounding_config.reload_config())
 # doesn't reuse a stale client built for a different backend.
 # ---------------------------------------------------------------------------
 

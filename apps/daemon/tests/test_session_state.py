@@ -18,7 +18,7 @@ Covers the architecture fix:
                recent session_meta row for the project auto-resolves and
                links (root-cause fix: no calling-convention change needed).
   T_STALE      /lifecycle/session/add with NO session_uuid and only a STALE
-               session_meta row (older than CRAG_ENGINE_SESSION_LINK_MAX_AGE_MIN)
+               session_meta row (older than CRAG_ANCHOR_SESSION_LINK_MAX_AGE_MIN)
                falls back to the legacy bare-INSERT (never guesses).
   T_LEGACY     Two calls with different/no session_uuid create separate rows
                (no false merging).

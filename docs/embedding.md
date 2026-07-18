@@ -55,7 +55,7 @@ Browsers block cross-origin framing by default. The engine daemon emits a CSP
 
 ```bash
 # space-separated list of origins allowed to iframe the console
-CRAG_ENGINE_CONSOLE_FRAME_ANCESTORS="https://app.example.com https://docs.example.com"
+CRAG_ANCHOR_CONSOLE_FRAME_ANCESTORS="https://app.example.com https://docs.example.com"
 ```
 
 - **Unset (default):** no CSP header is emitted; the browser's same-origin

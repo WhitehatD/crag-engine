@@ -28,10 +28,10 @@ _DRIVE_RE = re.compile(r"^[A-Za-z]:[/\\]")
 _LEADING_ZEROS_RE = re.compile(r"^0+(\d+)$")
 
 # Known repo roots — single-segment paths under these are legitimate.
-# Override via CRAG_ENGINE_KNOWN_ROOTS (comma-separated) for your workspace layout.
+# Override via CRAG_ANCHOR_KNOWN_ROOTS (comma-separated) for your workspace layout.
 _KNOWN_ROOTS = {
     r.strip() for r in os.environ.get(
-        "CRAG_ENGINE_KNOWN_ROOTS", "/src,/projects,/workspace,/repos"
+        "CRAG_ANCHOR_KNOWN_ROOTS", "/src,/projects,/workspace,/repos"
     ).split(",") if r.strip()
 }
 

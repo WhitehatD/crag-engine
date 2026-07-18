@@ -187,8 +187,8 @@ def run_T_NORM():
         ("file", "engine-cli.py",            "engine-cli.py",  False, "T_NRM_file_ok"),
         ("file", "/workspace/engine-cli.py", "engine-cli.py", False, "T_NRM_file_basename"),
         # --- env_var ---
-        ("env_var", "crag_engine_db",  "CRAG_ENGINE_DB",  False, "T_NRM_envvar_upper"),
-        ("env_var", "CRAG_ENGINE_DB",  "CRAG_ENGINE_DB",  False, "T_NRM_envvar_ok"),
+        ("env_var", "crag_anchor_db",  "CRAG_ANCHOR_DB",  False, "T_NRM_envvar_upper"),
+        ("env_var", "CRAG_ANCHOR_DB",  "CRAG_ANCHOR_DB",  False, "T_NRM_envvar_ok"),
         # --- unknown type passthrough ---
         ("widget", "foo-bar",   "foo-bar",   False, "T_NRM_unknown_passthru"),
     ]
@@ -223,7 +223,7 @@ def run_T_STORE(conn, path: str):
 
     # Save an insight containing a junk path (/main) and a legitimate port (8786).
     resp = client.post("/save_insight", json={
-        "content": "Port 8786 is where the crag engine daemon listens. See /main for index.",
+        "content": "Port 8786 is where the crag Anchor daemon listens. See /main for index.",
         "type": "architecture",
         "project": "test-graph",
     })
@@ -488,7 +488,7 @@ def run_T_ENTITY_REL(conn, path: str):
     # Seed an insight with exactly one IP + one port
     conn.execute(
         "INSERT OR IGNORE INTO insights (content, type, project, status, created_at, updated_at) "
-        "VALUES ('crag engine daemon at 203.0.113.10:8786', 'architecture', 'test-er', 'active', "
+        "VALUES ('crag Anchor daemon at 203.0.113.10:8786', 'architecture', 'test-er', 'active', "
         "datetime('now'), datetime('now'))"
     )
     iid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]

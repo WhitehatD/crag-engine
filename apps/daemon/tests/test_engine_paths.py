@@ -41,10 +41,10 @@ PASSES: list[str] = []
 # Environment keys the accessor reads — clear ALL of them for the default-path
 # assertions so the real shell env can't skew the test.
 _ALL_ENV = [
-    "CRAG_ENGINE_HOME", "CRAG_ENGINE_DB_PATH", "CRAG_ENGINE_LOG_DIR",
-    "CRAG_ENGINE_DAEMON_HOST", "CRAG_ENGINE_DAEMON_PORT",
-    "CRAG_ENGINE_SOURCE_HISTORY_DB", "CRAG_ENGINE_SOURCE_PROXY_LOG",
-    "CRAG_ENGINE_SOURCE_NOTIFY_TOKEN_FILE",
+    "CRAG_ANCHOR_HOME", "CRAG_ANCHOR_DB_PATH", "CRAG_ANCHOR_LOG_DIR",
+    "CRAG_ANCHOR_DAEMON_HOST", "CRAG_ANCHOR_DAEMON_PORT",
+    "CRAG_ANCHOR_SOURCE_HISTORY_DB", "CRAG_ANCHOR_SOURCE_PROXY_LOG",
+    "CRAG_ANCHOR_SOURCE_NOTIFY_TOKEN_FILE",
 ]
 _CLEAR_ENV = {k: "" for k in _ALL_ENV}
 
@@ -96,13 +96,13 @@ check("T_DEF_h: notify token source unset", bp.source("notify_token_file") is No
 print("\n== T_ENV: env override wins ==")
 
 env = {
-    "CRAG_ENGINE_HOME": "/srv/engine",
-    "CRAG_ENGINE_DB_PATH": "/data/custom.db",
-    "CRAG_ENGINE_LOG_DIR": "/var/log/engine",
-    "CRAG_ENGINE_DAEMON_HOST": "0.0.0.0",
-    "CRAG_ENGINE_DAEMON_PORT": "19999",
-    "CRAG_ENGINE_SOURCE_HISTORY_DB": "/tmp/history.db",
-    "CRAG_ENGINE_SOURCE_NOTIFY_TOKEN_FILE": "/etc/engine/notify.token",
+    "CRAG_ANCHOR_HOME": "/srv/engine",
+    "CRAG_ANCHOR_DB_PATH": "/data/custom.db",
+    "CRAG_ANCHOR_LOG_DIR": "/var/log/engine",
+    "CRAG_ANCHOR_DAEMON_HOST": "0.0.0.0",
+    "CRAG_ANCHOR_DAEMON_PORT": "19999",
+    "CRAG_ANCHOR_SOURCE_HISTORY_DB": "/tmp/history.db",
+    "CRAG_ANCHOR_SOURCE_NOTIFY_TOKEN_FILE": "/etc/engine/notify.token",
 }
 with mock.patch.dict(os.environ, env, clear=False):
     with mock.patch.object(engine_paths, "_STACK_TOML", Path("/nonexistent/stack.toml")):
@@ -175,7 +175,7 @@ with tempfile.NamedTemporaryFile(suffix=".toml", delete=False) as tf2:
     toml_path2 = Path(tf2.name)
 
 try:
-    with mock.patch.dict(os.environ, {"CRAG_ENGINE_DAEMON_PORT": "38786"}, clear=False):
+    with mock.patch.dict(os.environ, {"CRAG_ANCHOR_DAEMON_PORT": "38786"}, clear=False):
         with mock.patch.object(engine_paths, "_STACK_TOML", toml_path2):
             bpp = engine_paths._build_paths()
     check("T_PREC_a: env port beats toml port", bpp.daemon_port == 38786,
