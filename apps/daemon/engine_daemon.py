@@ -1722,7 +1722,15 @@ def _seconds_since_last_decay() -> float | None:
         conn.close()
     if not row or not row[0]:
         return None
-    ts = datetime.strptime(str(row[0])[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    # created_at is TEXT in one of two historical formats: legacy SQLite
+    # 'YYYY-MM-DD HH:MM:SS' (space, naive-UTC) or ISO-T (offset/microseconds
+    # optional) — live corpora contain both (migration 025 note). Same
+    # normalize-then-fromisoformat pattern as db/contradiction.py; the old
+    # strptime raised on ISO-T values and the loop logged a parse warning on
+    # every pass against a real corpus (2026-07-18 boot-test finding #4).
+    ts = datetime.fromisoformat(str(row[0]).replace(" ", "T").replace("Z", "+00:00"))
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - ts).total_seconds()
 
 
