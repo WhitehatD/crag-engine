@@ -9,7 +9,7 @@ import {
 // ---------------------------------------------------------------------------
 // EMPTY-DB gate (frontier plan §6 + the #3592 "no view ships over an empty
 // dimension" rule). This project boots a SECOND daemon against an UNSEEDED
-// temp DB. A fresh `crag-engine up` install is the evaluator's first-run path:
+// temp DB. A fresh `crag-anchor up` install is the evaluator's first-run path:
 // every empty state must RENDER (teaching empties), not crash. Same assertions
 // as the seeded gate — zero console errors, title renders, no h-scroll at 375.
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ Standalone (no pytest — mirrors test_disposition_engine.py).
 Covers:
   T_EMPTY_*    — every builder runs on a FRESH migrated DB (no rows) and returns
                  a well-formed, non-crashing payload. This is the evaluator's
-                 first-run path: `crag-engine up` on an empty DB must render.
+                 first-run path: `crag-anchor up` on an empty DB must render.
   T_TRUST      — trust_score = verified fraction of active claims; a fresh (pass)
                  claim counts verified, a stale one does not; value in [0,1].
   T_OVERVIEW   — counts + today strip + needs_you reflect seeded rows.

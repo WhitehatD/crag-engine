@@ -1,4 +1,4 @@
-# crag-engine
+# crag Anchor
 
 > **Unit tests for memory.** The verified-memory engine for [crag](https://crag.sh):
 > every memory an AI agent saves is decomposed into atomic claims, each claim gets an
@@ -17,7 +17,7 @@ AI coding agents forget everything between sessions — and worse, when they *do
 have memory, that memory silently rots: ports change, files move, decisions get
 reversed, and the agent keeps recalling the stale version with full confidence.
 
-crag-engine treats memory the way engineers treat code: **untested memory is
+crag Anchor treats memory the way engineers treat code: **untested memory is
 broken memory.**
 
 - **Save** — insights captured from agent sessions pass a write-path governance
@@ -42,10 +42,10 @@ broken memory.**
 Claude Code / Cursor session
         │  (stdio)
         ▼
-crag-engine-mcp ──── 30 MCP tools, thin HTTP client, no local state
+crag-anchor-mcp ──── 30 MCP tools, thin HTTP client, no local state
         │  (HTTP, localhost)
         ▼
-crag-engine daemon ── FastAPI on 127.0.0.1:8786
+crag-anchor daemon ── FastAPI on 127.0.0.1:8786
         │              ├─ embedding model (all-MiniLM-L6-v2, in-RAM)
         │              ├─ claim layer (decompose → classify → author falsifiers)
         │              ├─ grounding workers (v2 queue + v3 LLM adjudication)
@@ -121,27 +121,27 @@ Shipped above is live today. In flight and planned:
 ## Quickstart
 
 ```bash
-git clone <repo> crag-engine && cd crag-engine
+git clone <repo> crag-anchor && cd crag-anchor
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e '.[embeddings]'
 
-crag-engine                      # start the daemon (first boot downloads the ~90MB embedding model)
+crag-anchor                      # start the daemon (first boot downloads the ~90MB embedding model)
 curl -sf http://127.0.0.1:8786/health
 
 # register the MCP server with Claude Code:
-claude mcp add --scope user crag-engine crag-engine-mcp
+claude mcp add --scope user crag-anchor crag-anchor-mcp
 ```
 
 Docker, systemd, and launchd paths are documented in
 [packaging/README.md](packaging/README.md). Zero-config defaults are
 repo-relative (`db/engine.db`, `logs/`, bind `127.0.0.1:8786`); everything is
-overridable via `CRAG_ENGINE_*` env vars or `db/stack.toml`.
+overridable via `CRAG_ANCHOR_*` env vars or `db/stack.toml`.
 
 ## Relation to crag
 
 [crag](https://crag.sh) (`npm i -g @whitehatd/crag`) is the deterministic
 **governance compiler**: one `governance.md` source of truth, compiled into
-every agent format (CLAUDE.md, .cursorrules, AGENTS.md, hooks). crag-engine is
+every agent format (CLAUDE.md, .cursorrules, AGENTS.md, hooks). crag Anchor is
 the **memory + verification engine** underneath it: verified insights distill
 into principles, and principles whose claims roll up *fresh* can compile back
 into governance rules (`crag distill`). Compiler + engine, one product: rules

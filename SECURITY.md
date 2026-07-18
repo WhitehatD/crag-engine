@@ -17,7 +17,7 @@ SLA is promised** at this time.
   Exposing it beyond loopback is out of the default threat model — put it
   behind your own authenticated gateway if you do.
 - The capture endpoint (`POST /capture/event`) supports an optional
-  shared-secret token (`CRAG_ENGINE_CAPTURE_AUTH_TOKEN_FILE`); loopback-only
+  shared-secret token (`CRAG_ANCHOR_CAPTURE_AUTH_TOKEN_FILE`); loopback-only
   deployments may leave it unset.
 - Grounding executes falsifier shell commands **read-only by design**, with a
   forbidden-command guard at both authoring and execution time

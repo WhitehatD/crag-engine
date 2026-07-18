@@ -1,5 +1,5 @@
 """
-db/capabilities.py — crag-engine capability manifest (Phase D).
+db/capabilities.py — crag Anchor capability manifest (Phase D).
 
 Single source of truth that drives:
   • MCP tool descriptions (mcp-server.py imports _TOOLS_MANIFEST)
@@ -77,7 +77,7 @@ TOOLS_MANIFEST: list[dict] = [
         "name": "recall_stats",
         "category": "recall",
         "description": (
-            "crag-engine usage telemetry: hottest insights, top queries, dead-weight and cross-project "
+            "crag Anchor usage telemetry: hottest insights, top queries, dead-weight and cross-project "
             "promotion candidates. Weekly memory-health check."
         ),
         "required": [],
@@ -325,7 +325,7 @@ TOOLS_MANIFEST: list[dict] = [
         "name": "health_check",
         "category": "ops",
         "description": (
-            "Structured self-check of the crag-engine across 5 failure classes (proxy cord, embedding "
+            "Structured self-check of the crag Anchor across 5 failure classes (proxy cord, embedding "
             "backlog, DB corruption, token ledger, VPS tunnel). Call before risky operations."
         ),
         "required": [],
@@ -463,8 +463,8 @@ TOOLS_MANIFEST: list[dict] = [
         "name": "engine_guide",
         "category": "meta",
         "description": (
-            "Return a structured JSON guide to all crag-engine tools, endpoints, and workflows. "
-            "Call when you are new to crag-engine or want to know what's available."
+            "Return a structured JSON guide to all crag Anchor tools, endpoints, and workflows. "
+            "Call when you are new to crag Anchor or want to know what's available."
         ),
         "required": [],
         "params": {
@@ -640,7 +640,7 @@ ENDPOINTS_MANIFEST: list[dict] = [
 def render_llms_txt() -> str:
     """Render the full /llms.txt surface document."""
     lines = [
-        "# crag-engine — verified cross-session memory",
+        "# crag Anchor — verified cross-session memory",
         f"# Version: {MANIFEST_VERSION}",
         f"# MCP tools: {len(TOOLS_MANIFEST)}",
         f"# HTTP endpoints: {len(ENDPOINTS_MANIFEST)}",
@@ -674,7 +674,7 @@ def render_llms_txt() -> str:
         "  Events:         GET /lifecycle/events/list?project=X",
         "",
         "## Restart (if daemon unreachable)",
-        "  crag-engine   # runs the daemon in the foreground",
+        "  crag-anchor   # runs the daemon in the foreground",
         "",
     ]
     return "\n".join(lines)
@@ -704,5 +704,5 @@ def render_guide() -> dict:
             "cost_report": "GET /lifecycle/cost_report?project=X&days=7",
             "events": "GET /lifecycle/events/list?project=X",
         },
-        "restart": "crag-engine  # run the daemon in the foreground",
+        "restart": "crag-anchor  # run the daemon in the foreground",
     }

@@ -166,10 +166,10 @@ check("T_CFG_g: default escalation_model is sonnet-5", cfg.escalation_model == "
 
 # (b) env override wins over defaults
 with mock.patch.dict(os.environ, {
-    "CRAG_ENGINE_GROUNDING_MODEL": "test-model-x",
-    "CRAG_ENGINE_GROUNDING_DAILY_BUDGET_CALLS": "42",
-    "CRAG_ENGINE_GROUNDING_PAUSE_ON_BUDGET": "false",
-    "CRAG_ENGINE_GROUNDING_TEMPERATURE": "0.7",
+    "CRAG_ANCHOR_GROUNDING_MODEL": "test-model-x",
+    "CRAG_ANCHOR_GROUNDING_DAILY_BUDGET_CALLS": "42",
+    "CRAG_ANCHOR_GROUNDING_PAUSE_ON_BUDGET": "false",
+    "CRAG_ANCHOR_GROUNDING_TEMPERATURE": "0.7",
 }):
     with mock.patch.object(grounding_config, "_STACK_TOML", Path("/nonexistent/stack.toml")):
         cfg_env = grounding_config._build_config()
@@ -228,7 +228,7 @@ with tempfile.NamedTemporaryFile(suffix=".toml", delete=False) as tf2:
     toml_path2 = Path(tf2.name)
 
 try:
-    with mock.patch.dict(os.environ, {"CRAG_ENGINE_GROUNDING_MODEL": "env-wins"}):
+    with mock.patch.dict(os.environ, {"CRAG_ANCHOR_GROUNDING_MODEL": "env-wins"}):
         with mock.patch.object(grounding_config, "_STACK_TOML", toml_path2):
             cfg_ew = grounding_config._build_config()
     check("T_CFG_q: env wins over TOML", cfg_ew.model == "env-wins",

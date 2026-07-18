@@ -1,21 +1,21 @@
-# crag-engine — docker compose (WS-P packaging, 2026-07-17)
+# crag Anchor — docker compose (WS-P packaging, 2026-07-17)
 #
 # One-command daemon deploy on Linux/macOS/Windows with Docker:
 #   docker compose -f packaging/docker/docker-compose.yml up -d --build
 #
 # The build context is the REPO ROOT (two levels up) so the image can COPY the
-# whole tree (crag_engine shims execute the app scripts from the checkout).
+# whole tree (crag_anchor shims execute the app scripts from the checkout).
 #
 # SQLite is the default store — a single named volume holds the DB + logs +
 # embedding model cache. No external DB service required.
 
 services:
-  crag-engine:
+  crag-anchor:
     build:
       context: ../..
       dockerfile: packaging/docker/Dockerfile.daemon
-    image: crag-engine:local
-    container_name: crag-engine
+    image: crag-anchor:local
+    container_name: crag-anchor
     restart: unless-stopped
 
     # Localhost-only bind on the HOST (matches the bare-metal 127.0.0.1:8786
@@ -25,21 +25,21 @@ services:
       - "127.0.0.1:8786:8786"
 
     volumes:
-      # CRAG_ENGINE_HOME — DB (engine.db + -wal/-shm), logs/, and the embedding model
+      # CRAG_ANCHOR_HOME — DB (engine.db + -wal/-shm), logs/, and the embedding model
       # cache all persist here across container rebuilds.
-      - crag-engine-data:/data
+      - crag-anchor-data:/data
 
     environment:
-      CRAG_ENGINE_HOME: /data
-      CRAG_ENGINE_DB_PATH: /data/db/engine.db
-      CRAG_ENGINE_LOG_DIR: /data/logs
-      CRAG_ENGINE_DAEMON_HOST: 0.0.0.0
-      CRAG_ENGINE_DAEMON_PORT: 8786
+      CRAG_ANCHOR_HOME: /data
+      CRAG_ANCHOR_DB_PATH: /data/db/engine.db
+      CRAG_ANCHOR_LOG_DIR: /data/logs
+      CRAG_ANCHOR_DAEMON_HOST: 0.0.0.0
+      CRAG_ANCHOR_DAEMON_PORT: 8786
       # Team/server grounding mode: uncomment + supply a key via env_file to use
       # the Anthropic first-party API instead of the default local oauth path.
-      # CRAG_ENGINE_GROUNDING_PROVIDER: anthropic-api
+      # CRAG_ANCHOR_GROUNDING_PROVIDER: anthropic-api
     # env_file:
-    #   - ./crag-engine.env      # ANTHROPIC_API_KEY=... (NEVER commit this file)
+    #   - ./crag-anchor.env      # ANTHROPIC_API_KEY=... (NEVER commit this file)
 
     # Structural memory ceiling: the embedding model + FastAPI process fit
     # comfortably under 1g; cap it so a leak can't starve the host.
@@ -55,4 +55,4 @@ services:
       start_period: 120s
 
 volumes:
-  crag-engine-data:
+  crag-anchor-data:

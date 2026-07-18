@@ -1,9 +1,9 @@
-"""crag-engine lifecycle helpers shared by the daemon, the operator CLI, and cron
+"""crag-anchor lifecycle helpers shared by the daemon, the operator CLI, and cron
 (WS2 T2 + T3a). Two concerns live here because both are "designed lifecycle
 rules that may mutate" (doctrine: detection flags, LIFECYCLE resolves):
 
   1. decay_insights()      — the confidence-decay rule (trust must be able to
-     fall). Called by the daemon's weekly _decay_loop AND by crag-engine-cli's
+     fall). Called by the daemon's weekly _decay_loop AND by crag-anchor-cli's
      `decay` command so there is exactly ONE implementation.
   2. falsifier_resolvable() — the ONE predicate that decides whether a claim's
      falsifier can be honestly checked from the laptop. Used by the daemon's

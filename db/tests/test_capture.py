@@ -579,9 +579,9 @@ def run_T_RUN_CAPTURE_DRY_RUN():
         # Point the runner's config at OUR fixture + a temp watermark store
         # via env so run_once() never touches real ~/.claude transcripts or
         # the real capture-state.db.
-        os.environ["CRAG_ENGINE_CAPTURE_TRANSCRIPT_GLOB"] = transcript
-        os.environ["CRAG_ENGINE_CAPTURE_WATERMARK_STORE"] = wm_db
-        os.environ["CRAG_ENGINE_CAPTURE_DAEMON_URL"] = "http://127.0.0.1:1"
+        os.environ["CRAG_ANCHOR_CAPTURE_TRANSCRIPT_GLOB"] = transcript
+        os.environ["CRAG_ANCHOR_CAPTURE_WATERMARK_STORE"] = wm_db
+        os.environ["CRAG_ANCHOR_CAPTURE_DAEMON_URL"] = "http://127.0.0.1:1"
         capture_config.reload_config()
 
         orig_get_llm = run_capture._get_extract_llm
@@ -594,8 +594,8 @@ def run_T_RUN_CAPTURE_DRY_RUN():
             report = run_capture.run_once(dry_run=True, force_close_tail=True, max_spans=50)
         finally:
             run_capture._get_extract_llm = orig_get_llm
-            for k in ("CRAG_ENGINE_CAPTURE_TRANSCRIPT_GLOB", "CRAG_ENGINE_CAPTURE_WATERMARK_STORE",
-                      "CRAG_ENGINE_CAPTURE_DAEMON_URL"):
+            for k in ("CRAG_ANCHOR_CAPTURE_TRANSCRIPT_GLOB", "CRAG_ANCHOR_CAPTURE_WATERMARK_STORE",
+                      "CRAG_ANCHOR_CAPTURE_DAEMON_URL"):
                 os.environ.pop(k, None)
             capture_config.reload_config()
 

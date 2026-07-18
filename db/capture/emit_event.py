@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """I1 emitter CLI — POST a gate-failure / hook-block / CI-red event to the
-crag-engine capture receiver (POST /capture/event).
+crag-anchor capture receiver (POST /capture/event).
 
 This is the SENDING side of the closed-loop capture protocol. The receiver
 (apps/daemon/engine_daemon.py `/capture/event`) already validates + dedups +
@@ -68,7 +68,7 @@ def _derive_dedup_key(source: str, title: str, extra: str) -> str:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Emit an I1 capture event to the crag-engine receiver.")
+    ap = argparse.ArgumentParser(description="Emit an I1 capture event to the crag-anchor receiver.")
     ap.add_argument("--source", required=True, choices=sorted(VALID_SOURCES))
     ap.add_argument("--project", default=None)
     ap.add_argument("--title", required=True, help="short label for the failure")

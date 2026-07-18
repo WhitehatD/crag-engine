@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("crag-engine-capture")
+logger = logging.getLogger("crag-anchor-capture")
 
 _THIS_DIR = Path(__file__).resolve().parent            # db/capture/adapters/
 _CAPTURE_DIR = _THIS_DIR.parent                          # db/capture/

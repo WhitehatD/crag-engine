@@ -1,5 +1,5 @@
 # coding: utf-8
-"""Console-entry shim: `crag-engine-mcp` -> apps/mcp/mcp-server.py."""
+"""Console-entry shim: `crag-anchor-mcp` -> apps/mcp/mcp-server.py."""
 from __future__ import annotations
 
 from . import run_script

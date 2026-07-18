@@ -1,4 +1,4 @@
--- crag-engine -- SQLite memory backend
+-- crag-anchor -- SQLite memory backend
 -- BASELINE schema ONLY (11 tables: sessions, insights, principles, event queue,
 -- token ledger, ...). The LIVE schema = this baseline + every migration in
 -- db/migrations/*.sql applied via `engine-cli.py migrate` (24 tables at v24:

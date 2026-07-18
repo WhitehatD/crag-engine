@@ -53,7 +53,7 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
 // The root chrome header is the ONLY header carrying the brand link; Section /
 // Table primitives also render <header> tags, so target the brand, not <header>.
 const chromeBrand = (page: import("@playwright/test").Page) =>
-  page.getByRole("link", { name: /crag engine/i });
+  page.getByRole("link", { name: /crag Anchor/i });
 
 // ---------------------------------------------------------------------------
 // Non-embed default: the header chrome is present.

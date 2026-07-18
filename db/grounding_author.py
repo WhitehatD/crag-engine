@@ -33,7 +33,7 @@ import logging
 import re
 from typing import Any, Optional
 
-logger = logging.getLogger("crag-engine")
+logger = logging.getLogger("crag-anchor")
 
 
 # ---------------------------------------------------------------------------

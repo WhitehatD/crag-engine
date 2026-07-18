@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-crag-engine SQLite memory backend -- CLI helper
+crag-anchor SQLite memory backend -- CLI helper
 Repository pattern: skills call this script instead of raw file I/O.
 
 Usage:
@@ -49,7 +49,7 @@ DB_DIR = Path(__file__).parent
 DB_PATH = DB_DIR / "engine.db"
 SCHEMA_PATH = DB_DIR / "schema.sql"
 
-# WS2 T2 — crag-engine-cli lives in db/, so db/ is on sys.path[0] when run as a script;
+# WS2 T2 — crag-anchor-cli lives in db/, so db/ is on sys.path[0] when run as a script;
 # ensure it's importable even if invoked oddly. Shares the decay rule with the daemon.
 if str(DB_DIR) not in sys.path:
     sys.path.insert(0, str(DB_DIR))
@@ -1612,7 +1612,7 @@ def cmd_backfill_grounding_v2(args):
     ).fetchone()
     if not tbl_ok and not dry:
         print(json.dumps({"ok": False,
-                          "error": "grounding_jobs table not found — run crag-engine-cli migrate"}))
+                          "error": "grounding_jobs table not found — run crag-anchor-cli migrate"}))
         conn.close()
         return
 
@@ -1740,7 +1740,7 @@ def cmd_backfill_graph_v2(args):
     ).fetchone()
     if not tbl_ok and not dry:
         print(json.dumps({"ok": False,
-                          "error": "entity_canonical table missing — run crag-engine-cli migrate"}))
+                          "error": "entity_canonical table missing — run crag-anchor-cli migrate"}))
         conn.close()
         return
 
@@ -1793,7 +1793,7 @@ def cmd_backfill_graph_v2(args):
             if not dry:
                 try:
                     # Find existing canonical row by (entity_type, canonical) first —
-                    # so /opt/crag-engine and /crag-engine share one canonical_entity_id.
+                    # so /opt/crag-anchor and /crag-anchor share one canonical_entity_id.
                     existing = conn.execute(
                         "SELECT id FROM entity_canonical WHERE entity_type=? AND canonical=?",
                         (row["entity_type"], canonical),
@@ -2760,7 +2760,7 @@ def cmd_register_session(args):
     Optional: cwd, source ('hook' | 'router' | 'manual'; default 'manual')
 
     Example:
-      crag-engine-cli register-session '{"session_uuid":"7ac46a6d-c425-44f6-81fb-572eb0dafc40","project":"myproject","cwd":"/path/to/project","source":"hook"}'
+      crag-anchor-cli register-session '{"session_uuid":"7ac46a6d-c425-44f6-81fb-572eb0dafc40","project":"myproject","cwd":"/path/to/project","source":"hook"}'
     """
     data = parse_json_arg(args.json)
     require_fields(data, "session_uuid", "project")
@@ -2841,7 +2841,7 @@ def cmd_migrate(_args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="crag-engine SQLite memory backend")
+    parser = argparse.ArgumentParser(description="crag-anchor SQLite memory backend")
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("init")
@@ -3098,7 +3098,7 @@ def main():
         # Staging salvage
         "backfill-graph-v2": cmd_backfill_graph_v2,
         "salvage-staged": cmd_salvage_staged,
-        # Phase 5 crag engine daemon
+        # Phase 5 crag Anchor daemon
         "recall-stats": cmd_recall_stats,
     }
     cmd_map[args.command](args)

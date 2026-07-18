@@ -13,7 +13,7 @@ self-describing surface (drives /guide + /llms.txt) and legitimately still
 lists the 8 demoted tools as HTTP-reachable — so it is a SUPERSET of the MCP
 registry, not an exact mirror.
 
-Runs without a live crag engine daemon; tools/list needs no daemon connection
+Runs without a live crag Anchor daemon; tools/list needs no daemon connection
 (tool CALLS would return a loud structured error — there is no SQLite fallback).
 
 Exit codes:
@@ -106,8 +106,8 @@ def main() -> int:
         return 1
 
     python = sys.executable
-    env = {**os.environ, "CRAG_ENGINE_MCP_SMOKE": "1"}
-    env.setdefault("CRAG_ENGINE_DB_PATH", str(REPO_ROOT / "db" / "engine.db"))
+    env = {**os.environ, "CRAG_ANCHOR_MCP_SMOKE": "1"}
+    env.setdefault("CRAG_ANCHOR_DB_PATH", str(REPO_ROOT / "db" / "engine.db"))
 
     proc = subprocess.Popen(
         [python, str(MCP_SERVER)],

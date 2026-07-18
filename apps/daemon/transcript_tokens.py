@@ -1,4 +1,4 @@
-"""transcript_tokens.py — Pure transcript-based token parser for crag engine daemon.
+"""transcript_tokens.py — Pure transcript-based token parser for crag Anchor daemon.
 
 Replaces the broken Headroom-counter-diff approach with authoritative
 per-session token sums read directly from Claude Code JSONL transcripts.

@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-logger = logging.getLogger("crag-engine-capture")
+logger = logging.getLogger("crag-anchor-capture")
 
 _THIS_DIR = Path(__file__).resolve().parent           # db/capture/
 _DB_DIR = _THIS_DIR.parent                              # db/

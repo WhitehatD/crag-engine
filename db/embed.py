@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-crag-engine Embedding Service -- fastembed + all-MiniLM-L6-v2
+crag-anchor Embedding Service -- fastembed + all-MiniLM-L6-v2
 
 Model: sentence-transformers/all-MiniLM-L6-v2
   Dims: 384 (float32)
@@ -8,10 +8,10 @@ Model: sentence-transformers/all-MiniLM-L6-v2
   Output: normalized L2 vectors (dot product == cosine similarity)
 
 Environment:
-  CRAG_ENGINE_MODEL_CACHE   Override model cache dir.
-                      Default: <crag-engine-repo>/model-cache/
+  CRAG_ANCHOR_MODEL_CACHE   Override model cache dir.
+                      Default: <crag-anchor-repo>/model-cache/
                       (resolved from this file's location: db/embed.py ->
-                       parent.parent = crag-engine-repo root).
+                       parent.parent = crag-anchor-repo root).
                       We NEVER fall through to fastembed's built-in default
                       because that resolves to %TEMP%\fastembed_cache, which is
                       a volatile directory that OS cleaners and temp-management
@@ -30,8 +30,8 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIMS = 384
 _model = None  # module-level singleton
 
-# Permanent model cache directory — lives inside the crag-engine repo, never in TEMP.
-# db/embed.py -> .parent = db/ -> .parent = crag-engine-repo root -> / model-cache
+# Permanent model cache directory — lives inside the crag-anchor repo, never in TEMP.
+# db/embed.py -> .parent = db/ -> .parent = crag-anchor-repo root -> / model-cache
 _DEFAULT_CACHE_DIR = str(Path(__file__).resolve().parent.parent / "model-cache")
 
 
@@ -47,10 +47,10 @@ def get_model():
             "fastembed not installed. Run: pip install fastembed"
         )
     kwargs = {"model_name": EMBEDDING_MODEL}
-    # Always set cache_dir explicitly — CRAG_ENGINE_MODEL_CACHE env var takes
+    # Always set cache_dir explicitly — CRAG_ANCHOR_MODEL_CACHE env var takes
     # precedence; otherwise fall back to the repo-local default.
     # Never omit cache_dir (which would allow fastembed to use %TEMP%).
-    cache_dir = os.environ.get("CRAG_ENGINE_MODEL_CACHE") or _DEFAULT_CACHE_DIR
+    cache_dir = os.environ.get("CRAG_ANCHOR_MODEL_CACHE") or _DEFAULT_CACHE_DIR
     kwargs["cache_dir"] = cache_dir
     _model = TextEmbedding(**kwargs)
     return _model

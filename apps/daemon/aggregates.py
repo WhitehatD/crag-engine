@@ -10,7 +10,7 @@ Design invariants:
   connection and returns plain dicts. This keeps the surfaces safe to call at
   any cadence and trivially testable without a running daemon.
 - FAIL-SOFT. A missing table or an unmigrated DB yields empty/degraded data
-  with an explicit marker, never a 500. A fresh `crag-engine up` on an empty DB
+  with an explicit marker, never a 500. A fresh `crag-anchor up` on an empty DB
   must render, not crash (the evaluator's first-run path).
 - NO NEW VERDICT LOGIC. Trust/claim-health reuses claim_layer so there is one
   source of truth for "is this claim live"; we never re-derive liveness here.

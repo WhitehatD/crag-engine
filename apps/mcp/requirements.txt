@@ -1,4 +1,4 @@
-# crag-engine MCP server — Python dependencies
+# crag-anchor MCP server — Python dependencies
 # Install: pip install -r apps/mcp/requirements.txt
 #
 # mcp-server.py speaks JSON-RPC over stdio via the mcp package.

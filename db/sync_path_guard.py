@@ -10,7 +10,7 @@ corruption class: the sync client rewrites the file's inode / copies the
 
 Pure module, no I/O beyond a path resolution the caller passes in. The
 daemon calls `check_db_path(DB_PATH)` at lifespan begin and refuses to start
-(RuntimeError) unless the operator sets CRAG_ENGINE_ALLOW_SYNC_PATH=1, which
+(RuntimeError) unless the operator sets CRAG_ANCHOR_ALLOW_SYNC_PATH=1, which
 downgrades the refusal to a loud warning.
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ _SYNC_SEGMENT_PATTERNS = [
 
 _SYNC_RE = re.compile("|".join(_SYNC_SEGMENT_PATTERNS), re.IGNORECASE)
 
-_ALLOW_ENV = "CRAG_ENGINE_ALLOW_SYNC_PATH"
+_ALLOW_ENV = "CRAG_ANCHOR_ALLOW_SYNC_PATH"
 
 
 def _segments(path: Path) -> list[str]:
@@ -99,7 +99,7 @@ def check_db_path(path, *, logger=None) -> Optional[str]:
     """Enforce the guard for a DB path.
 
     - If the path is NOT under a sync folder: return None (all good).
-    - If it IS and CRAG_ENGINE_ALLOW_SYNC_PATH is unset/false: raise RuntimeError.
+    - If it IS and CRAG_ANCHOR_ALLOW_SYNC_PATH is unset/false: raise RuntimeError.
     - If it IS and the escape hatch is set: log a loud warning and return the
       offending segment (does NOT raise).
 

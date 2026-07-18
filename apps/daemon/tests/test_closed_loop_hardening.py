@@ -177,7 +177,7 @@ def run_T_SYNC():
               f"false positive on {p!r}: {g.detect_sync_segment(p)!r}")
 
     # check_db_path raises on a sync path with the escape hatch UNSET.
-    os.environ.pop("CRAG_ENGINE_ALLOW_SYNC_PATH", None)
+    os.environ.pop("CRAG_ANCHOR_ALLOW_SYNC_PATH", None)
     raised = False
     try:
         g.check_db_path(r"C:\Users\me\Dropbox\engine.db")
@@ -193,14 +193,14 @@ def run_T_SYNC():
         check("T_SYNC_normal_returns_none", False, f"unexpected raise: {exc}")
 
     # escape hatch downgrades to warning (returns segment, no raise).
-    os.environ["CRAG_ENGINE_ALLOW_SYNC_PATH"] = "1"
+    os.environ["CRAG_ANCHOR_ALLOW_SYNC_PATH"] = "1"
     try:
         seg = g.check_db_path(r"C:\Users\me\Dropbox\engine.db")
         check("T_SYNC_hatch_downgrades", seg == "Dropbox", f"expected 'Dropbox', got {seg!r}")
     except RuntimeError as exc:
         check("T_SYNC_hatch_downgrades", False, f"escape hatch still raised: {exc}")
     finally:
-        os.environ.pop("CRAG_ENGINE_ALLOW_SYNC_PATH", None)
+        os.environ.pop("CRAG_ANCHOR_ALLOW_SYNC_PATH", None)
 
 
 # ---------------------------------------------------------------------------
@@ -212,8 +212,8 @@ def run_T_CAPCFG():
     import config as capture_config
 
     # Defaults (clear any env overrides first).
-    for var in ("CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED", "CRAG_ENGINE_CAPTURE_DAEMON_TASK_INTERVAL_SEC",
-                "CRAG_ENGINE_CAPTURE_TOKEN"):
+    for var in ("CRAG_ANCHOR_CAPTURE_DAEMON_TASK_ENABLED", "CRAG_ANCHOR_CAPTURE_DAEMON_TASK_INTERVAL_SEC",
+                "CRAG_ANCHOR_CAPTURE_TOKEN"):
         os.environ.pop(var, None)
     cfg = capture_config.reload_config()
     check("T_CFG_default_enabled", cfg.daemon_task_enabled is True, str(cfg.daemon_task_enabled))
@@ -222,17 +222,17 @@ def run_T_CAPCFG():
     check("T_CFG_default_token_empty", cfg.event_token == "", repr(cfg.event_token))
 
     # Env overrides win.
-    os.environ["CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED"] = "false"
-    os.environ["CRAG_ENGINE_CAPTURE_DAEMON_TASK_INTERVAL_SEC"] = "45"
-    os.environ["CRAG_ENGINE_CAPTURE_TOKEN"] = "s3cr3t-token"
+    os.environ["CRAG_ANCHOR_CAPTURE_DAEMON_TASK_ENABLED"] = "false"
+    os.environ["CRAG_ANCHOR_CAPTURE_DAEMON_TASK_INTERVAL_SEC"] = "45"
+    os.environ["CRAG_ANCHOR_CAPTURE_TOKEN"] = "s3cr3t-token"
     cfg2 = capture_config.reload_config()
     check("T_CFG_env_disabled", cfg2.daemon_task_enabled is False, str(cfg2.daemon_task_enabled))
     check("T_CFG_env_interval", abs(cfg2.daemon_task_interval_sec - 45.0) < 1e-6,
           str(cfg2.daemon_task_interval_sec))
     check("T_CFG_env_token", cfg2.event_token == "s3cr3t-token", repr(cfg2.event_token))
 
-    for var in ("CRAG_ENGINE_CAPTURE_DAEMON_TASK_ENABLED", "CRAG_ENGINE_CAPTURE_DAEMON_TASK_INTERVAL_SEC",
-                "CRAG_ENGINE_CAPTURE_TOKEN"):
+    for var in ("CRAG_ANCHOR_CAPTURE_DAEMON_TASK_ENABLED", "CRAG_ANCHOR_CAPTURE_DAEMON_TASK_INTERVAL_SEC",
+                "CRAG_ANCHOR_CAPTURE_TOKEN"):
         os.environ.pop(var, None)
 
     # effective_event_token: a readable auth_token_file wins over the inline

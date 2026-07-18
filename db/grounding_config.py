@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Optional
 
 _THIS_DIR = Path(__file__).resolve().parent
-_STACK_TOML = Path(os.environ.get("CRAG_ENGINE_STACK_TOML", str(_THIS_DIR / "stack.toml")))
+_STACK_TOML = Path(os.environ.get("CRAG_ANCHOR_STACK_TOML", str(_THIS_DIR / "stack.toml")))
 
 # Mirrors the values hardcoded in the pre-Phase-1b modules — the fallback
 # path if stack.toml is missing/unreadable/malformed.
@@ -80,8 +80,8 @@ _DEFAULTS: dict = {
 }
 
 # Env var name -> (toml_section, toml_key, caster). Env always wins over
-# stack.toml. Names preserve the pre-existing CRAG_ENGINE_GROUNDING_MODEL /
-# CRAG_ENGINE_LLM_BASE_URL / CRAG_ENGINE_GROUNDING_WORKER_CONCURRENCY / _WORKER_SLEEP
+# stack.toml. Names preserve the pre-existing CRAG_ANCHOR_GROUNDING_MODEL /
+# CRAG_ANCHOR_LLM_BASE_URL / CRAG_ANCHOR_GROUNDING_WORKER_CONCURRENCY / _WORKER_SLEEP
 # spellings so nothing that already sets those env vars (tests, ops scripts)
 # breaks.
 def _bool(v: str) -> bool:
@@ -89,33 +89,33 @@ def _bool(v: str) -> bool:
 
 
 _ENV_OVERRIDES: list[tuple[str, str, str, type]] = [
-    ("CRAG_ENGINE_GROUNDING_MAX_ATTEMPTS", "grounding", "max_attempts", int),
-    ("CRAG_ENGINE_GROUNDING_WORKER_CONCURRENCY", "grounding", "worker_concurrency", int),
-    ("CRAG_ENGINE_GROUNDING_WORKER_SLEEP", "grounding", "poll_interval_sec", float),
-    ("CRAG_ENGINE_GROUNDING_SWEEP_INTERVAL", "grounding", "sweep_interval_sec", float),
-    ("CRAG_ENGINE_GROUNDING_SWEEP_BATCH", "grounding", "sweep_batch", int),
-    ("CRAG_ENGINE_GROUNDING_MIN_CALL_INTERVAL", "grounding", "min_call_interval_sec", float),
-    ("CRAG_ENGINE_GROUNDING_PROVIDER", "grounding.llm", "provider", str),
-    ("CRAG_ENGINE_GROUNDING_MODEL", "grounding.llm", "model", str),
-    ("CRAG_ENGINE_GROUNDING_ESCALATION_MODEL", "grounding.llm", "escalation_model", str),
-    ("CRAG_ENGINE_GROUNDING_ESCALATION_ENABLED", "grounding.llm", "escalation_enabled", _bool),
-    ("CRAG_ENGINE_LLM_BASE_URL", "grounding.llm", "base_url", str),
-    ("CRAG_ENGINE_GROUNDING_AUTH_SOURCE", "grounding.llm", "auth_source", str),
-    ("CRAG_ENGINE_GROUNDING_AUTHOR_MAX_TOKENS", "grounding.llm", "author_max_tokens", int),
-    ("CRAG_ENGINE_GROUNDING_ADJUDICATE_MAX_TOKENS", "grounding.llm", "adjudicate_max_tokens", int),
-    ("CRAG_ENGINE_GROUNDING_CORRECTION_MAX_TOKENS", "grounding.llm", "correction_max_tokens", int),
-    ("CRAG_ENGINE_GROUNDING_TEMPERATURE", "grounding.llm", "temperature", float),
-    ("CRAG_ENGINE_GROUNDING_SEND_TEMPERATURE", "grounding.llm", "send_temperature", _bool),
-    ("CRAG_ENGINE_GROUNDING_TIMEOUT_SEC", "grounding.llm", "timeout_sec", float),
-    ("CRAG_ENGINE_GROUNDING_DAILY_BUDGET_CALLS", "grounding.budget", "daily_budget_calls", int),
-    ("CRAG_ENGINE_GROUNDING_DAILY_BUDGET_TOKENS", "grounding.budget", "daily_budget_tokens", int),
-    ("CRAG_ENGINE_GROUNDING_PAUSE_ON_BUDGET", "grounding.budget", "pause_on_budget", _bool),
+    ("CRAG_ANCHOR_GROUNDING_MAX_ATTEMPTS", "grounding", "max_attempts", int),
+    ("CRAG_ANCHOR_GROUNDING_WORKER_CONCURRENCY", "grounding", "worker_concurrency", int),
+    ("CRAG_ANCHOR_GROUNDING_WORKER_SLEEP", "grounding", "poll_interval_sec", float),
+    ("CRAG_ANCHOR_GROUNDING_SWEEP_INTERVAL", "grounding", "sweep_interval_sec", float),
+    ("CRAG_ANCHOR_GROUNDING_SWEEP_BATCH", "grounding", "sweep_batch", int),
+    ("CRAG_ANCHOR_GROUNDING_MIN_CALL_INTERVAL", "grounding", "min_call_interval_sec", float),
+    ("CRAG_ANCHOR_GROUNDING_PROVIDER", "grounding.llm", "provider", str),
+    ("CRAG_ANCHOR_GROUNDING_MODEL", "grounding.llm", "model", str),
+    ("CRAG_ANCHOR_GROUNDING_ESCALATION_MODEL", "grounding.llm", "escalation_model", str),
+    ("CRAG_ANCHOR_GROUNDING_ESCALATION_ENABLED", "grounding.llm", "escalation_enabled", _bool),
+    ("CRAG_ANCHOR_LLM_BASE_URL", "grounding.llm", "base_url", str),
+    ("CRAG_ANCHOR_GROUNDING_AUTH_SOURCE", "grounding.llm", "auth_source", str),
+    ("CRAG_ANCHOR_GROUNDING_AUTHOR_MAX_TOKENS", "grounding.llm", "author_max_tokens", int),
+    ("CRAG_ANCHOR_GROUNDING_ADJUDICATE_MAX_TOKENS", "grounding.llm", "adjudicate_max_tokens", int),
+    ("CRAG_ANCHOR_GROUNDING_CORRECTION_MAX_TOKENS", "grounding.llm", "correction_max_tokens", int),
+    ("CRAG_ANCHOR_GROUNDING_TEMPERATURE", "grounding.llm", "temperature", float),
+    ("CRAG_ANCHOR_GROUNDING_SEND_TEMPERATURE", "grounding.llm", "send_temperature", _bool),
+    ("CRAG_ANCHOR_GROUNDING_TIMEOUT_SEC", "grounding.llm", "timeout_sec", float),
+    ("CRAG_ANCHOR_GROUNDING_DAILY_BUDGET_CALLS", "grounding.budget", "daily_budget_calls", int),
+    ("CRAG_ANCHOR_GROUNDING_DAILY_BUDGET_TOKENS", "grounding.budget", "daily_budget_tokens", int),
+    ("CRAG_ANCHOR_GROUNDING_PAUSE_ON_BUDGET", "grounding.budget", "pause_on_budget", _bool),
 ]
 
-# Backward-compat: CRAG_ENGINE_CONTRA_BASE_URL was the original name before
-# CRAG_ENGINE_LLM_BASE_URL existed (see llm_client.py history). Honored only if
-# CRAG_ENGINE_LLM_BASE_URL itself is unset.
-_LEGACY_BASE_URL_ENV = "CRAG_ENGINE_CONTRA_BASE_URL"
+# Backward-compat: CRAG_ANCHOR_CONTRA_BASE_URL was the original name before
+# CRAG_ANCHOR_LLM_BASE_URL existed (see llm_client.py history). Honored only if
+# CRAG_ANCHOR_LLM_BASE_URL itself is unset.
+_LEGACY_BASE_URL_ENV = "CRAG_ANCHOR_CONTRA_BASE_URL"
 
 
 @dataclass(frozen=True)
@@ -191,7 +191,7 @@ def _build_config() -> GroundingLLMConfig:
                 pass  # keep toml/default value on a malformed env var
 
     # Legacy base_url env fallback (only if the canonical name is unset).
-    if os.environ.get("CRAG_ENGINE_LLM_BASE_URL") is None:
+    if os.environ.get("CRAG_ANCHOR_LLM_BASE_URL") is None:
         legacy = os.environ.get(_LEGACY_BASE_URL_ENV)
         if legacy:
             merged["grounding.llm"]["base_url"] = legacy
@@ -247,14 +247,14 @@ def reload_config() -> GroundingLLMConfig:
 def get_claims_config() -> dict:
     """Grounding v3 [claims] flags merged over _DEFAULTS['claims'], with env
     overrides for the two switches operators flip most:
-      CRAG_ENGINE_CLAIMS_ENABLED (1/0)
-      CRAG_ENGINE_CLAIM_CONTRADICTION_ENABLED (1/0)
+      CRAG_ANCHOR_CLAIMS_ENABLED (1/0)
+      CRAG_ANCHOR_CLAIM_CONTRADICTION_ENABLED (1/0)
     Returns a plain dict (not a dataclass) — this section is small + advisory."""
     doc = _load_toml()
     merged = {**_DEFAULTS["claims"], **_section(doc, "claims")}
     for env_name, key in (
-        ("CRAG_ENGINE_CLAIMS_ENABLED", "enabled"),
-        ("CRAG_ENGINE_CLAIM_CONTRADICTION_ENABLED", "claim_contradiction_enabled"),
+        ("CRAG_ANCHOR_CLAIMS_ENABLED", "enabled"),
+        ("CRAG_ANCHOR_CLAIM_CONTRADICTION_ENABLED", "claim_contradiction_enabled"),
     ):
         raw = os.environ.get(env_name)
         if raw is not None and raw != "":

@@ -1,5 +1,5 @@
 # coding: utf-8
-"""crag-engine path + bind resolver — single source of truth for filesystem
+"""crag-anchor path + bind resolver — single source of truth for filesystem
 paths, the daemon bind (host/port), and any optional external source files.
 
 MANDATE (mirrors db/grounding_config.py's config doctrine): nothing about
@@ -12,7 +12,7 @@ resolution order:
 Env always wins. On a machine with ZERO config (no env, stack.toml absent or
 without a [paths] section) every accessor returns a sane repo-relative
 default — the repo root is derived from this file's location
-(`db/engine_paths.py` → parent → crag-engine root), so a fresh clone works
+(`db/engine_paths.py` → parent → crag-anchor root), so a fresh clone works
 unchanged. Deleting stack.toml must not break anything.
 
 House style: pure module, reads stack.toml once (cached), no I/O beyond that.
@@ -28,10 +28,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# db/engine_paths.py  →  db/  →  crag-engine root
+# db/engine_paths.py  →  db/  →  crag-anchor root
 _THIS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT_DEFAULT = _THIS_DIR.parent
-_STACK_TOML = Path(os.environ.get("CRAG_ENGINE_STACK_TOML", str(_THIS_DIR / "stack.toml")))
+_STACK_TOML = Path(os.environ.get("CRAG_ANCHOR_STACK_TOML", str(_THIS_DIR / "stack.toml")))
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ _STACK_TOML = Path(os.environ.get("CRAG_ENGINE_STACK_TOML", str(_THIS_DIR / "sta
 # log, an RTK-style history DB, a notification token file, ...). None of these
 # have a portable default — they are entirely deployment-specific — so every
 # key ships UNSET. Configure the ones you use via env
-# (CRAG_ENGINE_SOURCE_<KEY_UPPER>) or the [sources] block in db/stack.toml.
+# (CRAG_ANCHOR_SOURCE_<KEY_UPPER>) or the [sources] block in db/stack.toml.
 # Each source is INDIVIDUALLY optional and fail-soft: a source that is unset or
 # missing on a given host is simply skipped, never fatal.
 # ---------------------------------------------------------------------------
@@ -59,12 +59,12 @@ _SOURCE_DEFAULTS: dict[str, str] = {
 @dataclass(frozen=True)
 class EnginePaths:
     # Core filesystem layout.
-    home: Path            # crag-engine root ("CRAG_ENGINE_HOME"); db/, logs/ hang off this
-    db_path: Path         # engine.db ("CRAG_ENGINE_DB_PATH")
-    log_dir: Path         # logs/ ("CRAG_ENGINE_LOG_DIR")
+    home: Path            # crag-anchor root ("CRAG_ANCHOR_HOME"); db/, logs/ hang off this
+    db_path: Path         # engine.db ("CRAG_ANCHOR_DB_PATH")
+    log_dir: Path         # logs/ ("CRAG_ANCHOR_LOG_DIR")
     # Daemon bind.
-    daemon_host: str      # "CRAG_ENGINE_DAEMON_HOST" (default 127.0.0.1)
-    daemon_port: int      # "CRAG_ENGINE_DAEMON_PORT" (default 8786)
+    daemon_host: str      # "CRAG_ANCHOR_DAEMON_HOST" (default 127.0.0.1)
+    daemon_port: int      # "CRAG_ANCHOR_DAEMON_PORT" (default 8786)
     # Optional external sources (each individually optional / fail-soft).
     sources: dict[str, Path] = field(default_factory=dict)
 
@@ -114,31 +114,31 @@ def _build_paths() -> EnginePaths:
     sources_toml = _section(doc, "sources")
 
     # ── home ────────────────────────────────────────────────────────────────
-    home = Path(_resolve("CRAG_ENGINE_HOME", paths_toml.get("home"), _REPO_ROOT_DEFAULT))
+    home = Path(_resolve("CRAG_ANCHOR_HOME", paths_toml.get("home"), _REPO_ROOT_DEFAULT))
 
     # ── db_path ── default is <home>/db/engine.db, so it tracks a home override
     #    unless db_path is set explicitly.
     db_default = home / "db" / "engine.db"
-    db_path = Path(_resolve("CRAG_ENGINE_DB_PATH", paths_toml.get("db_path"), db_default))
+    db_path = Path(_resolve("CRAG_ANCHOR_DB_PATH", paths_toml.get("db_path"), db_default))
 
     # ── log_dir ── default <home>/logs, tracks home unless overridden.
     log_default = home / "logs"
-    log_dir = Path(_resolve("CRAG_ENGINE_LOG_DIR", paths_toml.get("log_dir"), log_default))
+    log_dir = Path(_resolve("CRAG_ANCHOR_LOG_DIR", paths_toml.get("log_dir"), log_default))
 
     # ── daemon bind ───────────────────────────────────────────────────────────
-    daemon_host = _resolve("CRAG_ENGINE_DAEMON_HOST", paths_toml.get("daemon_host"), "127.0.0.1")
-    port_raw = _resolve("CRAG_ENGINE_DAEMON_PORT", paths_toml.get("daemon_port"), "8786")
+    daemon_host = _resolve("CRAG_ANCHOR_DAEMON_HOST", paths_toml.get("daemon_host"), "127.0.0.1")
+    port_raw = _resolve("CRAG_ANCHOR_DAEMON_PORT", paths_toml.get("daemon_port"), "8786")
     try:
         daemon_port = int(port_raw)
     except (TypeError, ValueError):
         daemon_port = 8786
 
     # ── external sources ── per-key env override:
-    #    CRAG_ENGINE_SOURCE_<KEY_UPPER>  (e.g. CRAG_ENGINE_SOURCE_HISTORY_DB).
+    #    CRAG_ANCHOR_SOURCE_<KEY_UPPER>  (e.g. CRAG_ANCHOR_SOURCE_HISTORY_DB).
     #    Every default is empty; an unset source resolves to "" and is skipped.
     sources: dict[str, Path] = {}
     for key, default_val in _SOURCE_DEFAULTS.items():
-        env_name = f"CRAG_ENGINE_SOURCE_{key.upper()}"
+        env_name = f"CRAG_ANCHOR_SOURCE_{key.upper()}"
         toml_val = sources_toml.get(key)
         resolved = _resolve(env_name, toml_val, default_val)
         if resolved:

@@ -4,7 +4,7 @@
 // It NEVER touches a daemon on :8786. It:
 //   1. seeds a temp fixture DB via e2e/fixtures/seed.py (seeded or --empty),
 //   2. spawns the daemon (python apps/daemon/engine_daemon.py) with
-//      CRAG_ENGINE_DB_PATH=<temp> and CRAG_ENGINE_DAEMON_PORT=<port>,
+//      CRAG_ANCHOR_DB_PATH=<temp> and CRAG_ANCHOR_DAEMON_PORT=<port>,
 //   3. inherits stdio so Playwright's webServer readiness sees the boot log and
 //      polls the health/modules URL itself.
 //
@@ -149,10 +149,10 @@ if (seeded.status !== 0) {
 //    so seeded rows survive.
 const env = {
   ...process.env,
-  CRAG_ENGINE_DB_PATH: DB_PATH,
-  CRAG_ENGINE_DAEMON_PORT: String(PORT),
-  CRAG_ENGINE_DAEMON_HOST: "127.0.0.1",
-  CRAG_ENGINE_LOG_DIR: LOG_DIR,
+  CRAG_ANCHOR_DB_PATH: DB_PATH,
+  CRAG_ANCHOR_DAEMON_PORT: String(PORT),
+  CRAG_ANCHOR_DAEMON_HOST: "127.0.0.1",
+  CRAG_ANCHOR_LOG_DIR: LOG_DIR,
 };
 
 console.log(

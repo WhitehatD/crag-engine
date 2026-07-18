@@ -1,4 +1,4 @@
-"""Entity extraction for crag-engine insights/principles."""
+"""Entity extraction for crag-anchor insights/principles."""
 import re
 
 # Common infrastructure service names used as entity-extraction hints. Extend
