@@ -2075,6 +2075,23 @@ except ImportError as _agg_err:  # pragma: no cover
     import builtins
     builtins.print(f"[daemon] aggregates (surface read-model) not found ({_agg_err}) — /overview /inbox /rules disabled")
 
+# Deterministic session lifecycle (P0 wedge — design laws 1-2). GET /session/start
+# composes the context payload the harness injects at session start; POST
+# /session/end records the end marker + returns the payoff numbers. Reuses the
+# aggregates builders bound just above — one source of truth. Fail-soft: absent
+# module simply means those two routes are disabled.
+try:
+    import session_lifecycle as _session_lifecycle
+    _session_lifecycle.bind(
+        get_db=get_db,
+        table_exists=_table_exists,
+        aggregates=_aggregates,
+    )
+    app.include_router(_session_lifecycle.router)
+except (ImportError, NameError) as _sl_err:  # pragma: no cover
+    import builtins
+    builtins.print(f"[daemon] session_lifecycle not found ({_sl_err}) — /session/start /session/end disabled")
+
 
 # ---------------------------------------------------------------------------
 # Event journal — append-only ring buffer of state-change events.

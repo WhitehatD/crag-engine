@@ -533,6 +533,27 @@ async def do_brief(project: str) -> dict:
     return await _daemon_request("GET", f"/brief?project={project}")
 
 
+async def do_session_start(project: str = None) -> dict:
+    """session_start MCP tool — the deterministic-loop context payload. Thin
+    GET of the daemon's /session/start (design laws 1-2)."""
+    params = f"?project={project}" if project else ""
+    return await _daemon_request("GET", f"/session/start{params}")
+
+
+async def do_session_end(project: str = None, session_id: str = None,
+                         summary: str = None) -> dict:
+    """session_end MCP tool — records the end marker + returns payoff numbers.
+    Thin POST of the daemon's /session/end (design laws 1-2)."""
+    body = {}
+    if project:
+        body["project"] = project
+    if session_id:
+        body["session_id"] = session_id
+    if summary:
+        body["summary"] = summary
+    return await _daemon_request("POST", "/session/end", body)
+
+
 async def do_engine_guide(fmt: str = "json") -> dict:
     """engine_guide MCP tool — structured guide to all tools + endpoints."""
     if fmt == "text":
@@ -1196,6 +1217,40 @@ async def list_tools() -> list:
                 "required": ["project"],
             },
         ),
+        # ── P0 deterministic session lifecycle (design laws 1-2) ──────────
+        Tool(
+            name="session_start",
+            description=(
+                "Deterministic-loop context payload for session start: ONE composed bundle — "
+                "overview (trust/counts/today), the top true-t2 needs-you items, stale-rules "
+                "count, and the last session diary row. Invoked by the harness SessionStart "
+                "hook via the CLI; prompts suggest, hooks enforce."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project": {"type": "string", "description": "Project scope (optional)"},
+                },
+                "required": [],
+            },
+        ),
+        Tool(
+            name="session_end",
+            description=(
+                "Deterministic-loop end-capture: records a session-end marker and returns the "
+                "payoff numbers (captured/verified/promoted today). FAST + fail-open — invoked "
+                "by the harness SessionEnd hook via the CLI."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project": {"type": "string", "description": "Project scope (optional)"},
+                    "session_id": {"type": "string", "description": "Session UUID (optional)"},
+                    "summary": {"type": "string", "description": "One-line session summary (optional)"},
+                },
+                "required": [],
+            },
+        ),
         # ── D self-describing ─────────────────────────────────────────────
         Tool(
             name="engine_guide",
@@ -1468,6 +1523,15 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
         # ── C3 brief ───────────────────────────────────────────────────────
         elif name == "brief":
             result = await do_brief(arguments["project"])
+        # ── P0 deterministic session lifecycle (design laws 1-2) ────────────
+        elif name == "session_start":
+            result = await do_session_start(arguments.get("project"))
+        elif name == "session_end":
+            result = await do_session_end(
+                arguments.get("project"),
+                arguments.get("session_id"),
+                arguments.get("summary"),
+            )
         # ── D self-describing ──────────────────────────────────────────────
         elif name == "engine_guide":
             result = await do_engine_guide(arguments.get("format", "json"))
