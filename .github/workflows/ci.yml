@@ -69,3 +69,57 @@ jobs:
             fi
           done
           exit $fail
+
+  console-e2e:
+    # The browser-verification GATE (frontier plan §0, §6): a headless Chromium
+    # loads EVERY console route at 375px and 1280px against a REAL daemon booted
+    # on a NON-default port over a TEMP fixture DB, and FAILS on any console
+    # error. Two prior consoles shipped with runtime render crashes because no
+    # browser testing existed anywhere — endpoint curls + tsc cannot catch a
+    # render crash. A normal (required-style) job: failing it fails the workflow.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      # The seeder + daemon are pure-stdlib to bootstrap/seed the fixture DB, but
+      # the daemon imports fastembed at startup; install the package so the boot
+      # matches production. (The console never needs the model to render — the
+      # webServer readiness polls /console/modules, not /health.)
+      - name: Install engine package (all extras)
+        working-directory: .
+        run: pip install -e '.[all]'
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: model-cache
+          key: model-cache-all-minilm-l6-v2
+      - name: npm ci
+        run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/console/package-lock.json') }}
+      - name: Install Chromium (+ system deps)
+        run: npx playwright install --with-deps chromium
+      - name: Run console e2e gate
+        run: npx playwright test
+      - name: Upload Playwright report + screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/console/playwright-report
+            apps/console/test-results
+          retention-days: 14

@@ -2,3 +2,11 @@ node_modules/
 dist/
 *.tsbuildinfo
 .vite/
+
+# Playwright e2e gate
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+dist.build.lock
+e2e/.daemon-logs/
