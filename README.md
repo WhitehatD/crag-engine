@@ -58,6 +58,66 @@ SQLite (WAL) ──────── engine.db: insights, principles, claims, f
 
 See [docs/architecture.md](docs/architecture.md) for the honest deep-dive.
 
+## The loop
+
+One closed loop turns raw session failures into compiled governance:
+
+```
+capture → disposition (T0 auto / T1 agent / T2 human) → claims → grounding
+        → principles → crag distill → .crag/governance.gen.md → crag compile → 23 targets
+```
+
+Trust score is the **verified fraction of active claims** — only principles
+whose claims roll up *fresh* are eligible to compile into governance, so the
+rules an agent obeys are derived from verified reality, not vibes.
+
+## Read-model contract
+
+The daemon exposes ONE read-model; every surface (CLI, console, cloud, ops)
+renders these same aggregates. No surface owns logic.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /overview` | Trust hero: trust score, corpus counts, today's captured/verified/promoted |
+| `GET /inbox` | Items that need a human — TRUE-T2 dispositions only |
+| `GET /rules` | Memory-become-law: active principles with claim health |
+| `GET /console/modules` | Data-driven console nav manifest (the nav IS data) |
+
+Ops-only aggregates (`GET /infra/stack`, `/infra/costs`, `/infra/sessions`) are
+served exclusively by the private operator instance, appended via the module
+seam — never present in this open-source engine.
+
+## Surfaces
+
+The engine is headless; surfaces render the read-model.
+
+- **Embedded console** — ONE app, data-driven nav from `/console/modules`. A
+  module seam lets an operator instance append its `infra` module without a
+  fork. Embeds via a contract (`?embed=1` + `postMessage` + `frame-ancestors`
+  from env). *(Shipped, live 2026-07-18.)*
+- **crag CLI cockpit** — `crag status` / `crag inbox` / `crag why <id>` read the
+  aggregates; `crag sync --memory` pushes an overview+rules snapshot to
+  app.crag.sh. *(On `feat/memory-seam`; ships in the next `@whitehatd/crag`
+  release.)*
+- **Cloud** — app.crag.sh stores pushed snapshots and renders a "Verified
+  Memory" card. *(Deployed.)*
+
+## Roadmap (honest tense)
+
+Shipped above is live today. In flight and planned:
+
+- **P0 — session lifecycle** *(in progress)*: `session_start` / `session_end`
+  MCP methods + per-harness `command` hooks (invisible capture/sync, not skills
+  the agent must remember).
+- **Console v3** *(in progress)*: five decision-surfaces (Memory · Needs You ·
+  Browser · Rules · Systems) on the live aggregates, behind a Playwright gate,
+  flipped in via the manifest once they pass.
+- **P0.5 — BYO-key gateway** *(planned)*: bring ANY provider's key —
+  paste-a-key → OS keychain → one provider-neutral gateway with per-role model
+  aliases; spend caps enforced outside agent code. No subscription login
+  (banned by providers in 2026).
+- **P1 — GitHub App** *(planned)*: quiet, evidence-linked PR receipts.
+
 ## Quickstart
 
 ```bash
