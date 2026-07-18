@@ -274,6 +274,50 @@ def test_end_seeded():
 
 
 # ---------------------------------------------------------------------------
+# T_UPSERT — the anti-fragmentation contract: ONE canonical row per uuid;
+# blind markers never persist; enrichment never clobbers.
+# ---------------------------------------------------------------------------
+def test_end_upsert():
+    path = _build_temp_db()
+    conn = db(path)
+
+    # 1. Double session_end with the SAME uuid -> exactly ONE row.
+    sl.build_session_end(conn, project="infra", session_id="uuid-dup", summary="first")
+    sl.build_session_end(conn, project="infra", session_id="uuid-dup", summary="second")
+    n = conn.execute(
+        "SELECT COUNT(*) FROM sessions WHERE session_uuid='uuid-dup'").fetchone()[0]
+    check("T_UPSERT_one_row_per_uuid", n == 1, f"rows={n}")
+
+    # 2. The richer first summary is NOT clobbered by the later one.
+    acc = conn.execute(
+        "SELECT accomplished FROM sessions WHERE session_uuid='uuid-dup'").fetchone()[0]
+    check("T_UPSERT_no_clobber", acc == "first", acc)
+
+    # 3. An EMPTY auto-captured row (the migration-029 shape) gets ENRICHED.
+    conn.execute(
+        "INSERT INTO sessions (project, date, session_uuid, created_at) "
+        "VALUES ('infra','2026-07-18','uuid-empty',?)", (ISO,))
+    conn.commit()
+    sl.build_session_end(conn, project="infra", session_id="uuid-empty", summary="filled in")
+    row = conn.execute(
+        "SELECT COUNT(*) n, MAX(accomplished) acc FROM sessions WHERE session_uuid='uuid-empty'"
+    ).fetchone()
+    check("T_UPSERT_enriches_empty", row["n"] == 1 and row["acc"] == "filled in",
+          f"n={row['n']} acc={row['acc']}")
+
+    # 4. No session_id AND no summary -> NOTHING persisted (blind markers are
+    #    fragmentation noise), but the call still succeeds with recorded=False.
+    before = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+    en = sl.build_session_end(conn, project="infra", session_id=None, summary=None)
+    after = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+    check("T_UPSERT_blind_marker_skipped", after == before and en["recorded"] is False,
+          f"before={before} after={after} recorded={en['recorded']}")
+
+    conn.close()
+    os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
 # T_FAILSOFT — DB missing diary + staging tables: degrade, never raise.
 # ---------------------------------------------------------------------------
 def test_failsoft():
@@ -331,7 +375,7 @@ def test_http_routes():
 def main() -> int:
     print("=== session lifecycle suite ===")
     for fn in (test_empty, test_start_seeded, test_start_stale_rules,
-               test_end_seeded, test_failsoft, test_http_routes):
+               test_end_seeded, test_end_upsert, test_failsoft, test_http_routes):
         print(f"\n{fn.__name__}:")
         fn()
     print(f"\n{'='*50}\nPASS {len(PASSES)}  FAIL {len(FAILURES)}")

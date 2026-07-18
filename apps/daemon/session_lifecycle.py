@@ -167,19 +167,51 @@ def build_session_end(conn, project: Optional[str] = None,
 
 def _record_end_marker(conn, project: Optional[str], session_id: Optional[str],
                        summary: Optional[str]) -> bool:
-    """INSERT a compact session-end row into `sessions`. Returns True on write,
-    False if the table is absent or the write failed (both are acceptable —
-    the payoff numbers are returned regardless)."""
+    """UPSERT the ONE canonical session row, keyed by session_uuid.
+
+    The sessions table historically fragmented (88% NULL-uuid rows, up to 13
+    rows/day) because every writer blind-INSERTed. The rule now:
+    - session_id present → UPSERT: enrich the existing uuid row (fill
+      `accomplished` only if empty — never clobber a richer diary entry),
+      else create it. ONE row per real session, whoever writes first.
+    - no session_id but an explicit summary → deliberate manual record: INSERT
+      (legacy diary behavior, uuid-less by user intent).
+    - neither → DO NOT WRITE. A blind "session ended" marker is fragmentation
+      noise; the payoff numbers still return.
+
+    Returns True only when a row was written/updated. Fail-open on any error.
+    """
     if not _table_exists(conn, "sessions"):
+        return False
+    if not session_id and not summary:
         return False
     proj = project or "unknown"
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    accomplished = summary or "session-end (auto-captured by hook)"
     try:
+        if session_id:
+            row = conn.execute(
+                "SELECT id, accomplished FROM sessions WHERE session_uuid = ?",
+                (session_id,),
+            ).fetchone()
+            if row is not None:
+                if summary and not row["accomplished"]:
+                    conn.execute(
+                        "UPDATE sessions SET accomplished = ?, "
+                        "auto_captured_at = ? WHERE id = ?",
+                        (summary, _now_iso(), row["id"]),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE sessions SET auto_captured_at = ? WHERE id = ?",
+                        (_now_iso(), row["id"]),
+                    )
+                conn.commit()
+                return True
         conn.execute(
             "INSERT INTO sessions (project, date, accomplished, session_uuid, "
             "auto_captured_at, created_at) VALUES (?,?,?,?,?,?)",
-            (proj, day, accomplished, session_id, _now_iso(), _now_iso()),
+            (proj, day, summary or "session-end (auto-captured by hook)",
+             session_id, _now_iso(), _now_iso()),
         )
         conn.commit()
         return True
