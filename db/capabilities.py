@@ -429,6 +429,35 @@ TOOLS_MANIFEST: list[dict] = [
             "project": "Project slug for scoped brief",
         },
     },
+    # ── P0 deterministic session lifecycle ─────────────────────────────────
+    {
+        "name": "session_start",
+        "category": "lifecycle",
+        "description": (
+            "Deterministic-loop context payload for session start: ONE composed bundle — "
+            "overview (trust/counts/today), top true-t2 needs-you items, stale-rules count, "
+            "and the last session diary row. Invoked by the harness SessionStart hook via the CLI."
+        ),
+        "required": [],
+        "params": {
+            "project": "Project scope (optional)",
+        },
+    },
+    {
+        "name": "session_end",
+        "category": "lifecycle",
+        "description": (
+            "Deterministic-loop end-capture: records a session-end marker and returns the payoff "
+            "numbers (captured/verified/promoted today). FAST + fail-open — invoked by the harness "
+            "SessionEnd hook via the CLI."
+        ),
+        "required": [],
+        "params": {
+            "project": "Project scope (optional)",
+            "session_id": "Session UUID (optional)",
+            "summary": "One-line session summary (optional)",
+        },
+    },
     # ── D self-describing ─────────────────────────────────────────────────
     {
         "name": "engine_guide",

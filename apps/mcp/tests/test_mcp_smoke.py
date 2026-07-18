@@ -3,11 +3,15 @@
 MCP smoke test — WS3a consolidated surface + C2+C3+D extensions.
 
 Spawns mcp-server.py as a subprocess, sends JSON-RPC messages over stdin,
-and asserts that the tools/list response contains EXACTLY the 25 registered
-tools (9 unchanged + 8 merged + promote_insight + health_check + 6 C2+C3+D).
+and asserts that the tools/list response contains EXACTLY the 24 registered
+tools after the 2026-07-18 tool-surface trim (8 ops/telemetry/disposition
+tools demoted to HTTP/CLI/console; their daemon endpoints remain).
 
-Also verifies bidirectional parity between the MCP registry and
-db/capabilities.py TOOLS_MANIFEST (neither may have a tool the other lacks).
+Also verifies one-directional parity: every MCP tool must be described in
+db/capabilities.py TOOLS_MANIFEST. The manifest is the daemon's FULL
+self-describing surface (drives /guide + /llms.txt) and legitimately still
+lists the 8 demoted tools as HTTP-reachable — so it is a SUPERSET of the MCP
+registry, not an exact mirror.
 
 Runs without a live crag engine daemon; tools/list needs no daemon connection
 (tool CALLS would return a loud structured error — there is no SQLite fallback).
@@ -30,13 +34,15 @@ MCP_SERVER = REPO_ROOT / "apps" / "mcp" / "mcp-server.py"
 
 # ── Expected tool names ───────────────────────────────────────────────────────
 # WS3a surface: 9 unchanged + 8 merged + 1 absorbed + 1 kept = 19 total.
+# The 8 tools demoted OUT of the MCP surface on 2026-07-18 (their daemon HTTP
+# endpoints remain; the demotion is MCP-layer only): recall_stats,
+# recent_insights, health_check, graph, engine_guide, disposition_list,
+# staging_triage, disposition_resolve.
 EXPECTED_TOOLS = {
-    # Unchanged (9)
+    # Unchanged (7)
     "recall",
     "recall_principle",
     "recall_by_entity",
-    "recall_stats",
-    "recent_insights",
     "list_principles",
     "save_insight",
     "suggest_tags",
@@ -52,23 +58,18 @@ EXPECTED_TOOLS = {
     "grounding",
     # Absorbed (promote + distill)
     "promote_insight",
-    # Kept
-    "health_check",
-    # C2+C3+D (6)
+    # C2 lifecycle + C3 brief (5)
     "session_diary",
     "project_context",
     "events",
     "cost_report",
     "brief",
-    "engine_guide",
-    # E graph (1)
-    "graph",
-    # Disposition engine + governance back-edge (4)
-    "disposition_list",
-    "disposition_resolve",
+    # Session lifecycle (2)
+    "session_start",
+    "session_end",
+    # Governance back-edge (1)
     "principles_export",
-    "staging_triage",
-}
+}  # 24 tools
 
 # ── JSON-RPC helpers ──────────────────────────────────────────────────────────
 def rpc_bytes(method: str, params: dict | None = None, req_id: int = 1) -> bytes:
@@ -207,7 +208,15 @@ def main() -> int:
 
     print(f"PASS: all {len(EXPECTED_TOOLS)} expected tools present: {sorted(found_names)}")
 
-    # ── Bidirectional parity: MCP registry ⇄ capabilities.TOOLS_MANIFEST ──
+    # ── Subset parity: every MCP tool must be described in TOOLS_MANIFEST ──
+    # After the 2026-07-18 trim the MCP registry is a SUBSET of the manifest:
+    # the manifest is the daemon's full self-describing surface (drives /guide
+    # + /llms.txt) and legitimately still lists the 8 demoted, HTTP-reachable
+    # tools. So we require MCP ⊆ manifest, NOT an exact mirror.
+    DEMOTED = {
+        "recall_stats", "recent_insights", "health_check", "graph",
+        "engine_guide", "disposition_list", "staging_triage", "disposition_resolve",
+    }
     try:
         import importlib.util as _ilu
         _cap_path = Path(__file__).resolve().parents[3] / "db" / "capabilities.py"
@@ -217,18 +226,22 @@ def main() -> int:
         manifest_names = {t["name"] for t in _mod.TOOLS_MANIFEST}
 
         in_mcp_not_manifest = found_names - manifest_names
+        # Manifest tools absent from MCP must be exactly the demoted set.
         in_manifest_not_mcp = manifest_names - found_names
 
         if in_mcp_not_manifest:
             print(f"FAIL: tools in MCP registry but NOT in capabilities.TOOLS_MANIFEST: "
                   f"{sorted(in_mcp_not_manifest)}", file=sys.stderr)
             return 1
-        if in_manifest_not_mcp:
-            print(f"FAIL: tools in capabilities.TOOLS_MANIFEST but NOT in MCP registry: "
-                  f"{sorted(in_manifest_not_mcp)}", file=sys.stderr)
+        unexpected_gap = in_manifest_not_mcp - DEMOTED
+        if unexpected_gap:
+            print(f"FAIL: tools in TOOLS_MANIFEST but NOT in MCP registry and NOT a "
+                  f"known-demoted tool: {sorted(unexpected_gap)}", file=sys.stderr)
             return 1
 
-        print(f"PASS: bidirectional parity verified — {len(manifest_names)} tools match exactly")
+        print(f"PASS: subset parity verified -- MCP registry is a subset of manifest "
+              f"({len(found_names)} MCP tools, {len(manifest_names)} manifest tools, "
+              f"{len(in_manifest_not_mcp)} demoted-but-HTTP-reachable)")
     except Exception as exc:
         print(f"WARN: parity check skipped ({type(exc).__name__}: {exc})", file=sys.stderr)
 

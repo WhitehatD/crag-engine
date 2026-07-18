@@ -2,15 +2,15 @@
 """
 crag-engine MCP Server -- verified cross-session memory for Claude Code / Cursor
 
-Exposes tools via stdio MCP protocol (consolidated surface):
-  unchanged: recall, recall_principle, recall_by_entity, recall_stats,
-             recent_insights, list_principles, save_insight, suggest_tags,
-             add_token_record
+Exposes tools via stdio MCP protocol (consolidated surface, 24 tools after the
+2026-07-18 tool-surface trim — 8 ops/telemetry/disposition tools demoted to
+HTTP/CLI/console; their daemon endpoints remain):
+  unchanged: recall, recall_principle, recall_by_entity,
+             list_principles, save_insight, suggest_tags, add_token_record
   merged:    get (insight/principle x N ids), verify, update, supersede,
              arena (N pairs), clear_suspect (N pairs), audit
              (contradictions|drift), grounding (audit|check|clear)
   absorbed:  promote_insight (1 id = promote, N ids + content = distill)
-  kept:      health_check
 
 Architecture:
   - Thin HTTP client of the crag engine daemon at 127.0.0.1:8786. Every tool is a
@@ -162,11 +162,6 @@ async def do_suggest_tags(content: str, project: str = None, limit: int = 5) -> 
     })
 
 
-async def do_recall_stats(project: str = None, days: int = 7) -> dict:
-    path = f"/recall_stats?days={days}" + (f"&project={project}" if project else "")
-    return await _daemon_request("GET", path)
-
-
 async def do_recall_by_entity(entity: str, entity_type: str = None,
                               project: str = None, limit: int = 20) -> dict:
     return await _daemon_request("POST", "/recall_by_entity", {
@@ -195,16 +190,6 @@ async def do_principles_export(project: str = None, compile_eligible: bool = Tru
     if project:
         params += f"&project={project}"
     return await _daemon_request("GET", f"/principles/export?{params}")
-
-
-async def do_recent_insights(project: str = None, days: int = 30, type_: str = "",
-                             limit: int = 50, order_by: str = "created_desc") -> dict:
-    params = f"limit={limit}&order_by={order_by}"
-    if project:
-        params += f"&project={project}"
-    if type_:
-        params += f"&type={type_}"
-    return await _daemon_request("GET", f"/query/insights?{params}")
 
 
 async def do_add_token_record(arguments: dict) -> dict:
@@ -373,21 +358,6 @@ async def do_promote_insight(insight_ids: list, content: str = None, project: st
     })
 
 
-async def do_health_check() -> dict:
-    """Structured health probe. Bypasses _daemon_request because the daemon
-    returns HTTP 503 (with a structured body) when a CRITICAL class is down —
-    we need that body, not the generic error envelope."""
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=DAEMON_TIMEOUT) as client:
-            r = await client.get(f"{DAEMON_URL}/fail_mode_check")
-            # 200 = all clear, 503 = critical down — both carry the structured payload.
-            return r.json()
-    except Exception as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}",
-                "checks": [], "summary": "daemon unreachable", "principle_ref": 146}
-
-
 # ── Extended grounding: jobs | history | stats actions ─────────────────────
 
 async def do_grounding_extended(action: str, project: str = None, claim_kind: str = None,
@@ -554,91 +524,6 @@ async def do_session_end(project: str = None, session_id: str = None,
     return await _daemon_request("POST", "/session/end", body)
 
 
-async def do_engine_guide(fmt: str = "json") -> dict:
-    """engine_guide MCP tool — structured guide to all tools + endpoints."""
-    if fmt == "text":
-        # Return llms.txt as a JSON-wrapped string
-        result = await _daemon_request("GET", "/llms.txt")
-        # /llms.txt returns plain text; httpx will decode it as a string in the error path.
-        # Wrap for uniform MCP envelope.
-        if isinstance(result, dict) and result.get("ok") is False:
-            return result
-        return {"ok": True, "text": result if isinstance(result, str) else str(result)}
-    return await _daemon_request("GET", "/guide")
-
-
-async def do_graph(action: str, **kwargs) -> dict:
-    """graph MCP tool — Graph v2 traversal (siblings / neighbors / impact)."""
-    if action == "siblings":
-        claim_kind = kwargs.get("claim_kind", "insight")
-        claim_id = kwargs.get("claim_id")
-        limit = kwargs.get("limit", 20)
-        if claim_id is None:
-            return {"ok": False, "error": "claim_id required for action=siblings"}
-        return await _daemon_request(
-            "GET", f"/graph/siblings?claim_kind={claim_kind}&claim_id={claim_id}&limit={limit}"
-        )
-    elif action == "neighbors":
-        entity = kwargs.get("entity")
-        entity_type = kwargs.get("entity_type")
-        limit = kwargs.get("limit", 20)
-        if not entity or not entity_type:
-            return {"ok": False, "error": "entity and entity_type required for action=neighbors"}
-        return await _daemon_request(
-            "GET", f"/graph/neighbors?entity={entity}&entity_type={entity_type}&limit={limit}"
-        )
-    elif action == "impact":
-        entity = kwargs.get("entity")
-        entity_type = kwargs.get("entity_type")
-        if not entity or not entity_type:
-            return {"ok": False, "error": "entity and entity_type required for action=impact"}
-        return await _daemon_request(
-            "GET", f"/graph/impact?entity={entity}&entity_type={entity_type}"
-        )
-    else:
-        return {"ok": False, "error": f"unknown action: {action}. Use siblings|neighbors|impact"}
-
-
-# ============================================================
-# Disposition Engine tools (control plane — docs/architecture.md REV 5 §5.2)
-# ============================================================
-
-async def do_disposition_list(project: str = None, tier: str = None,
-                              status: str = "pending", limit: int = 100) -> dict:
-    """disposition_list — pending staging entries by tier (tiers lazily
-    stamped daemon-side)."""
-    params = [f"status={status}", f"limit={limit}"]
-    if project:
-        params.append(f"project={project}")
-    if tier:
-        params.append(f"tier={tier}")
-    return await _daemon_request("GET", "/disposition/list?" + "&".join(params))
-
-
-async def do_staging_triage(staging_id: int) -> dict:
-    """staging_triage — read one staging row + its tier + matched policy rule
-    (the 'read both sides before deciding' convenience)."""
-    return await _daemon_request("GET", f"/disposition/triage/{staging_id}")
-
-
-async def do_disposition_resolve(staging_id: int, action: str, actor: str,
-                                reason: str = None, target_id: int = None,
-                                capability: str = None) -> dict:
-    """disposition_resolve — capability-gated. accept/merge at tier t1/t2
-    without sufficient capability returns a 'requires_human' verdict from the
-    daemon (the transition is NOT executed)."""
-    if not actor:
-        return {"ok": False, "error": "actor is required (attribution invariant)"}
-    body = {"staging_id": staging_id, "action": action, "actor": actor}
-    if reason is not None:
-        body["reason"] = reason
-    if target_id is not None:
-        body["target_id"] = target_id
-    if capability is not None:
-        body["capability"] = capability
-    return await _daemon_request("POST", "/disposition/resolve", body)
-
-
 # ============================================================
 # Broadcast subscriber — background task started in main().
 # ============================================================
@@ -777,39 +662,6 @@ async def list_tools() -> list:
                     "limit": {"type": "integer", "default": 20},
                 },
                 "required": ["entity"],
-            },
-        ),
-        Tool(
-            name="recall_stats",
-            description=(
-                "crag-engine usage telemetry: hottest insights, top queries, dead-weight and cross-project "
-                "promotion candidates. Weekly memory-health check."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {"type": "string", "description": "Project scope (optional)"},
-                    "days": {"type": "integer", "default": 7, "description": "Lookback window in days"},
-                },
-            },
-        ),
-        Tool(
-            name="recent_insights",
-            description=(
-                "List recent insights for a project ordered by creation, confidence, or recall frequency. "
-                "Use at session end to spot promotion/distillation candidates."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {"type": "string", "description": "Project scope (optional)"},
-                    "days": {"type": "integer", "default": 30, "description": "Recency window in days"},
-                    "type": {"type": "string", "description": "Type filter, e.g. gotcha|pattern|decision"},
-                    "limit": {"type": "integer", "default": 50},
-                    "order_by": {"type": "string", "default": "created_desc",
-                                 "description": "created_desc|confidence_desc|recalled_desc"},
-                },
-                "required": [],
             },
         ),
         Tool(
@@ -1092,14 +944,6 @@ async def list_tools() -> list:
                 "required": ["insight_ids"],
             },
         ),
-        Tool(
-            name="health_check",
-            description=(
-                "Structured self-check of the crag-engine across 5 failure classes (proxy cord, embedding "
-                "backlog, DB corruption, token ledger, VPS tunnel). Call before risky operations."
-            ),
-            inputSchema={"type": "object", "properties": {}, "required": []},
-        ),
         # ── C2 operator-lifecycle tools ─────────────────────────────────────
         Tool(
             name="session_diary",
@@ -1251,112 +1095,6 @@ async def list_tools() -> list:
                 "required": [],
             },
         ),
-        # ── D self-describing ─────────────────────────────────────────────
-        Tool(
-            name="engine_guide",
-            description=(
-                "Return a structured JSON guide to all crag-engine tools, endpoints, and workflows. "
-                "Call when you are new to crag-engine or want to know what's available."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "format": {"type": "string", "enum": ["json", "text"],
-                               "description": "json (default) returns structured guide; text returns llms.txt"},
-                },
-                "required": [],
-            },
-        ),
-        # ── E graph traversal (migration 027) ─────────────────────────────
-        Tool(
-            name="graph",
-            description=(
-                "Graph v2 traversal. action='siblings': claims sharing ≥1 canonical entity "
-                "with a given claim, ranked by shared count. action='neighbors': canonical "
-                "entity info, typed relations, linked-claims count. action='impact': 1-hop "
-                "entity neighborhood + all linked claims (impact zone for an entity change)."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "action": {"type": "string", "enum": ["siblings", "neighbors", "impact"],
-                               "description": "Traversal type"},
-                    "claim_kind": {"type": "string", "enum": ["insight", "principle"],
-                                   "description": "siblings: kind of the anchor claim"},
-                    "claim_id": {"type": "integer",
-                                 "description": "siblings: ID of the anchor claim"},
-                    "entity": {"type": "string",
-                               "description": "neighbors/impact: raw entity value"},
-                    "entity_type": {"type": "string",
-                                    "description": "neighbors/impact: port|ip|domain|path|service|file|classname|env_var"},
-                    "limit": {"type": "integer", "default": 20,
-                              "description": "siblings/neighbors: max results"},
-                },
-                "required": ["action"],
-            },
-        ),
-        # ── Disposition Engine (control plane — migration 033) ────────────
-        Tool(
-            name="disposition_list",
-            description=(
-                "List pending insights_staging entries by tier (t0 auto / t1 agent-delegable / "
-                "t2 human). Tiers are lazily classified daemon-side. Call before draining or "
-                "triaging the staging proposal ledger."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {"type": "string", "description": "Scope to a project (optional)"},
-                    "tier": {"type": "string", "enum": ["t0", "t1", "t2"],
-                             "description": "Filter to one tier (optional)"},
-                    "status": {"type": "string", "default": "pending",
-                               "description": "Ledger status filter (default 'pending'; '' = all)"},
-                    "limit": {"type": "integer", "default": 100, "description": "Max rows (<=500)"},
-                },
-                "required": [],
-            },
-        ),
-        Tool(
-            name="staging_triage",
-            description=(
-                "Read ONE staging entry + its tier + the matched policy rule — the 'read both "
-                "sides before deciding' convenience (mirrors the contradiction-FP-triage pattern). "
-                "Call before disposition_resolve on an ambiguous (t1/t2) entry."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "staging_id": {"type": "integer", "description": "insights_staging row id"},
-                },
-                "required": ["staging_id"],
-            },
-        ),
-        Tool(
-            name="disposition_resolve",
-            description=(
-                "Resolve a staging entry: accept (staging->corpus), reject (drop, memory-only), "
-                "merge (into target_id via supersede — reversible), or defer. CAPABILITY-GATED: "
-                "accept/merge at tier t1 needs capability='granted'; at t2 needs 'human_approved'. "
-                "Without sufficient capability the daemon returns a 'requires_human' verdict and "
-                "does NOT execute. actor (attribution) is mandatory on every call."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "staging_id": {"type": "integer", "description": "insights_staging row id"},
-                    "action": {"type": "string", "enum": ["accept", "reject", "merge", "defer"],
-                               "description": "The disposition to execute"},
-                    "actor": {"type": "string",
-                              "description": "Who/what decided (agent id / 'operator') — REQUIRED"},
-                    "reason": {"type": "string", "description": "Why (audit trail)"},
-                    "target_id": {"type": "integer",
-                                  "description": "Required for action='merge': existing insight id to merge into"},
-                    "capability": {"type": "string", "enum": ["granted", "human_approved"],
-                                   "description": "Session capability for the T1/T2 gate (omit for none)"},
-                },
-                "required": ["staging_id", "action", "actor"],
-            },
-        ),
     ]
 
 
@@ -1380,16 +1118,6 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
                 arguments.get("entity_type"),
                 arguments.get("project"),
                 arguments.get("limit", 20),
-            )
-        elif name == "recall_stats":
-            result = await do_recall_stats(arguments.get("project"), arguments.get("days", 7))
-        elif name == "recent_insights":
-            result = await do_recent_insights(
-                arguments.get("project"),
-                arguments.get("days", 30),
-                arguments.get("type", ""),
-                arguments.get("limit", 50),
-                arguments.get("order_by", "created_desc"),
             )
         elif name == "principles_export":
             result = await do_principles_export(
@@ -1496,8 +1224,6 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
                 arguments.get("epic_tag"),
                 arguments.get("session_id"),
             )
-        elif name == "health_check":
-            result = await do_health_check()
         # ── C2 lifecycle tools ─────────────────────────────────────────────
         elif name == "session_diary":
             result = await do_session_diary(
@@ -1531,33 +1257,6 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
                 arguments.get("project"),
                 arguments.get("session_id"),
                 arguments.get("summary"),
-            )
-        # ── D self-describing ──────────────────────────────────────────────
-        elif name == "engine_guide":
-            result = await do_engine_guide(arguments.get("format", "json"))
-        # ── E graph traversal ──────────────────────────────────────────────
-        elif name == "graph":
-            result = await do_graph(arguments["action"], **{
-                k: v for k, v in arguments.items() if k != "action"
-            })
-        # ── Disposition Engine (control plane) ──────────────────────────────
-        elif name == "disposition_list":
-            result = await do_disposition_list(
-                arguments.get("project"),
-                arguments.get("tier"),
-                arguments.get("status", "pending"),
-                arguments.get("limit", 100),
-            )
-        elif name == "staging_triage":
-            result = await do_staging_triage(arguments["staging_id"])
-        elif name == "disposition_resolve":
-            result = await do_disposition_resolve(
-                arguments["staging_id"],
-                arguments["action"],
-                arguments["actor"],
-                arguments.get("reason"),
-                arguments.get("target_id"),
-                arguments.get("capability"),
             )
         else:
             result = {"ok": False, "error": f"unknown tool: {name}"}
